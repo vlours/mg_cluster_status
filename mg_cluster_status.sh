@@ -8,6 +8,7 @@
 # 1.0         # Initial
 # 1.1         # Adding colors and fixing typos
 # 1.1.1       # MCO manage (%) + README update
+# 1.1.2       # Fix filter for Unsuccessful PODs + titles updates
 ##################################################################
 
 ##### Functions
@@ -173,7 +174,7 @@ fi
 if [[ ! -z ${EVENTS} ]]
 then
   fct_header "DEFAULT EVENTS"
-  fct_title "Default Events"
+  fct_title "Events in default namespace"
   ${OC} get events -n default -o json | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message)")' | column -t -s'|'
 fi
 
@@ -181,10 +182,10 @@ if [[ ! -z ${PODS} ]]
 then
   fct_header "POD STATUS"
   fct_title "Unsuccessful PODs"
-  ${OC} get pod -A -o wide | grep -Ev "Running|Completed|Succeeded|Error" | sed -e "s/ [Terminating|Pending|ContainerCreation] /${yellowtext}&${resetcolor}/"
+  ${OC} get pod -A -o wide | grep -Ev "Running|Completed|Succeeded|Error" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending\|ContainerCreating/${redtext}&${resetcolor}/"
   fct_title "Uncomplete POD started"
   ${OC} get pod -A -o wide | grep -Ev "Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
-  fct_title "High number POD restart"
+  fct_title "High number POD restart (>${MIN_RESTART})" 
   ${OC} get pod -A -o wide | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\+ /${yellowtext}&${resetcolor}/"
 fi
 
@@ -200,8 +201,8 @@ fi
 if [[ ! -z ${ALERTS} ]]
 then
   fct_header "ALERTS STATUS"
-  fct_title "Alerts"
+  fct_title "firing Alerts"
   ${OC} alerts rules -s firing | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/"
-  fct_title "Firing Alerts rules"
+  fct_title "Firing Alerts rules details"
   ${OC} alerts rules -o json | jq "\"ALERTNAME|LAST ACTIVE|NAMESPACE|WORKLOAD,LABEL,ENDPOINT,JOB OR SERVICE|SEVERITY|DESCRIPTION|\",(.data[] | select(.state == \"firing\") | .alerts | sort_by(.activeAt) | .[] | \"\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job else .labels.service end)|\(.labels.severity)|\(.annotations.description[0:${ALERT_TRUNK}])\")" | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' | sed -e "s/ warning /${yellowtext}&${resetcolor}/" -e "s/ info /${greentext}&${resetcolor}/" -e "s/ critical /${redtext}&${resetcolor}/"
 fi
