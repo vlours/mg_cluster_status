@@ -31,7 +31,7 @@ To update to the latest version, you simply have to pull the script from the rep
 ```bash
 mg_cluster_status_dir=$(dirname $(alias mg_check | cut -d"'" -f2))
 cd ${mg_cluster_status_dir}
-git pull mg_cluster_status
+git pull origin main
 ```
 
 ### Remove the script (_based on the alias_)
