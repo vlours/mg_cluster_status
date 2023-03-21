@@ -76,7 +76,7 @@ Usage: mg_cluster_status.sh [-acevmnop|-h]
   -p: display the PODS status
   -h: display this help
 
-version: 1.1.1
+version: 1.1.2
 ```
 
 You can mix the options to display only the desired status:

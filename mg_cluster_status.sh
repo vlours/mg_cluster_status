@@ -2,7 +2,7 @@
 ##################################################################
 # Script      # mg_cluster_status.sh
 # Description # Display basic health check on a Must-gather
-# @VERSION    # 1.1.1
+# @VERSION    # 1.1.2
 ##################################################################
 # Changelog   #
 # 1.0         # Initial
