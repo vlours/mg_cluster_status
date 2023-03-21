@@ -76,7 +76,7 @@ Usage: mg_cluster_status.sh [-acevmnop|-h]
   -p: display the PODS status
   -h: display this help
 
-version: 1.0
+version: 1.1.1
 ```
 
 You can mix the options to display only the desired status:
@@ -92,7 +92,8 @@ mg_check -acevmnop # will have the same display as running the script without op
 Before running the script you can set some variables which allow you to customize your outputs
 
 ```bash
-export OC=/usr/bin/omc # Where to locate the `omc` command   - Default: omc
-export ALERT_TRUNK=100 # Length to trunk alerts descriptions - Default: 100
-export MIN_RESTART=5   # Minimal restart count for PODs      - Default: 5
+export OC=/usr/bin/omc    # Where to locate the `omc` command     - Default: omc
+export ALERT_TRUNK=100    # Length to trunk alerts descriptions   - Default: 100
+export OPERATOR_TRUNK=220 # Length to trunk Operator descriptions - Default: 220
+export MIN_RESTART=5      # Minimal restart count for PODs        - Default: 5
 ```

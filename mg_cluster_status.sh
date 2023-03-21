@@ -2,11 +2,12 @@
 ##################################################################
 # Script      # mg_cluster_status.sh
 # Description # Display basic health check on a Must-gather
-# @VERSION    # 1.1
+# @VERSION    # 1.1.1
 ##################################################################
 # Changelog   #
 # 1.0         # Initial
 # 1.1         # Adding colors and fixing typos
+# 1.1.1       # MCO manage (%) + README update
 ##################################################################
 
 ##### Functions
@@ -164,7 +165,7 @@ then
   fct_title "Latest MachineConfigs"
   ${OC} get mc -o json | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10
   fct_title "MCP state & versions"
-  ${OC} get mcp -o json | jq -r '"MCP Name | Desired Rendered | Current Rendered | Paused | maxUnavailable",(.items[] | "\(.metadata.name) | \(.spec.configuration.name) | \(.status.configuration.name) | \(.spec.paused) | \(if (.spec.maxUnavailable != null) then .spec.maxUnavailable else 1 end )")' | column -t -s'|' | sed -e "s/ [1-9]\+[0-9]$/${yellowtext}&${resetcolor}/" -e "s/ true /${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
+  ${OC} get mcp -o json | jq -r '"MCP Name | Desired Rendered | Current Rendered | Paused | maxUnavailable",(.items[] | "\(.metadata.name) | \(.spec.configuration.name) | \(.status.configuration.name) | \(.spec.paused) | \(if (.spec.maxUnavailable != null) then .spec.maxUnavailable else 1 end )")' | column -t -s'|' | sed -e "s/ [1-9]\+[0-9][%]\?$/${yellowtext}&${resetcolor}/" -e "s/ true /${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
   fct_title "MCO by node"
   ${OC} get nodes -ojson | jq -r '"Node Name | Desired MC | Current MC | MC State",(.items| sort_by(.metadata.name,.metadata.annotations."machineconfiguration.openshift.io/desiredConfig",.metadata.annotations."machineconfiguration.openshift.io/currentConfig") | .[]  | "\(.metadata.name) | \(.metadata.annotations."machineconfiguration.openshift.io/currentConfig") |  \(.metadata.annotations."machineconfiguration.openshift.io/desiredConfig") | \(.metadata.annotations."machineconfiguration.openshift.io/state")")' | column -t -s'|'
 fi
