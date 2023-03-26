@@ -76,7 +76,13 @@ Usage: mg_cluster_status.sh [-acevmnop|-h]
   -p: display the PODS status
   -h: display this help
 
-version: 1.1.2
+version: 1.1.3
+
+Customizable variables before running the script (Optional):
+export OC=[omc|omg]              #Change the must-gather tool                                           (Default: omc)
+export ALERT_TRUNK=<interger>    #Change the length of the Alert Descriptions                           (Default: 100)
+export OPERATOR_TRUNK=<interger  #Change the length of the Operator Message in 'oc get co'              (Default: 220)
+export MIN_RESTART=<integer>     #Change the minimal number of restart when checking the POD restarts   (Default: 5)
 ```
 
 You can mix the options to display only the desired status:
