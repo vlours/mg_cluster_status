@@ -9,6 +9,7 @@
 # 1.1         # Adding colors and fixing typos
 # 1.1.1       # MCO manage (%) + README update
 # 1.1.2       # Fix filter for Unsuccessful PODs + titles updates
+# 1.1.3       # Add variables names in the Help message
 ##################################################################
 
 ##### Functions
@@ -25,6 +26,14 @@ fct_help(){
   echo "  -o: display the OPERATORS status"
   echo "  -p: display the PODS status"
   echo -e "  -h: display this help\n\nversion:${VERSION}"
+  echo -e "\nCustomizable variables before running the script (Optional):"
+  EXPORT_TAB=32
+  COMMENT_TAB=70
+  DEFAULT_TAB=16
+  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s\n" "export OC=[omc|omg]" "#Change the must-gather tool" "(Default: omc)"
+  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s\n" "export ALERT_TRUNK=<interger>" "#Change the length of the Alert Descriptions" "(Default: 100)"
+  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s\n" "export OPERATOR_TRUNK=<interger" "#Change the length of the Operator Message in 'oc get co'" "(Default: 220)"
+  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s\n" "export MIN_RESTART=<integer>" "#Change the minimal number of restart when checking the POD restarts" "(Default: 5)"
   exit 0
 }
 
