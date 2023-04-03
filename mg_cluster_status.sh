@@ -2,7 +2,7 @@
 ##################################################################
 # Script      # mg_cluster_status.sh
 # Description # Display basic health check on a Must-gather
-# @VERSION    # 1.1.3
+# @VERSION    # 1.1.4
 ##################################################################
 # Changelog   #
 # 1.0         # Initial
@@ -10,6 +10,7 @@
 # 1.1.1       # MCO manage (%) + README update
 # 1.1.2       # Fix filter for Unsuccessful PODs + titles updates
 # 1.1.3       # Add variables names in the Help message
+# 1.1.4       # Add color filters in MCP outputs
 ##################################################################
 
 ##### Functions
@@ -175,9 +176,9 @@ then
   fct_title "Latest MachineConfigs"
   ${OC} get mc -o json | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10
   fct_title "MCP state & versions"
-  ${OC} get mcp -o json | jq -r '"MCP Name | Desired Rendered | Current Rendered | Paused | maxUnavailable",(.items[] | "\(.metadata.name) | \(.spec.configuration.name) | \(.status.configuration.name) | \(.spec.paused) | \(if (.spec.maxUnavailable != null) then .spec.maxUnavailable else 1 end )")' | column -t -s'|' | sed -e "s/ [1-9]\+[0-9][%]\?$/${yellowtext}&${resetcolor}/" -e "s/ true /${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
+  ${OC} get mcp -o json | jq -r '"MCP Name | Current Rendered | Desired Rendered | Paused | maxUnavailable",(.items[] | "\(.metadata.name) | \(.status.configuration.name) | \(if (.spec.configuration.name != .status.configuration.name) then "RED"+.spec.configuration.name else "GREEN"+.spec.configuration.name end) | \(.spec.paused) | \(if (.spec.maxUnavailable != null) then .spec.maxUnavailable else 1 end )")' | column -t -s'|' | sed -e "s/ [1-9]\+[0-9][%]\?$/${yellowtext}&${resetcolor}/" -e "s/ true /${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/" -e "s/RED\([0-9a-z\-]*\)/${redtext}\1   ${resetcolor}/" -e "s/GREEN\([0-9a-z\-]*\)/${greentext}\1     ${resetcolor}/"
   fct_title "MCO by node"
-  ${OC} get nodes -ojson | jq -r '"Node Name | Desired MC | Current MC | MC State",(.items| sort_by(.metadata.name,.metadata.annotations."machineconfiguration.openshift.io/desiredConfig",.metadata.annotations."machineconfiguration.openshift.io/currentConfig") | .[]  | "\(.metadata.name) | \(.metadata.annotations."machineconfiguration.openshift.io/currentConfig") |  \(.metadata.annotations."machineconfiguration.openshift.io/desiredConfig") | \(.metadata.annotations."machineconfiguration.openshift.io/state")")' | column -t -s'|'
+  ${OC} get nodes -ojson | jq -r '"Node Name | Current MC | Desired MC | MC State",(.items| sort_by(.metadata.name,.metadata.annotations."machineconfiguration.openshift.io/desiredConfig",.metadata.annotations."machineconfiguration.openshift.io/currentConfig") | .[]  | "\(.metadata.name) | \(.metadata.annotations."machineconfiguration.openshift.io/currentConfig") | \(if (.metadata.annotations."machineconfiguration.openshift.io/currentConfig" == .metadata.annotations."machineconfiguration.openshift.io/desiredConfig") then "GREEN" + .metadata.annotations."machineconfiguration.openshift.io/desiredConfig" else "RED" + .metadata.annotations."machineconfiguration.openshift.io/desiredConfig" end) | \(.metadata.annotations."machineconfiguration.openshift.io/state")")' | column -t -s'|' | sed -e "s/ Degraded$/${redtext}&${resetcolor}/" -e "s/ Done$/${greentext}&${resetcolor}/" -e "s/RED\([0-9a-z\-]*\)/${redtext}\1   ${resetcolor}/" -e "s/GREEN\([0-9a-z\-]*\)/${greentext}\1     ${resetcolor}/"
 fi
 
 if [[ ! -z ${EVENTS} ]]
@@ -194,7 +195,7 @@ then
   ${OC} get pod -A -o wide | grep -Ev "Running|Completed|Succeeded|Error" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending\|ContainerCreating/${redtext}&${resetcolor}/"
   fct_title "Uncomplete POD started"
   ${OC} get pod -A -o wide | grep -Ev "Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
-  fct_title "High number POD restart (>${MIN_RESTART})" 
+  fct_title "High number POD restart (>${MIN_RESTART})"
   ${OC} get pod -A -o wide | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\+ /${yellowtext}&${resetcolor}/"
 fi
 
