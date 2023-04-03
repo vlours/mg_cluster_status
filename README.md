@@ -29,9 +29,7 @@ source ${HOME}/.bashrc
 To update to the latest version, you simply have to pull the script from the repository.
 
 ```bash
-mg_cluster_status_dir=$(dirname $(alias mg_check | cut -d"'" -f2))
-cd ${mg_cluster_status_dir}
-git pull origin main
+mg_cluster_status_dir=$(dirname $(alias mg_check | cut -d"'" -f2)); cd ${mg_cluster_status_dir}; git pull origin main; cd -
 ```
 
 ### Remove the script (_based on the alias_)
@@ -76,7 +74,7 @@ Usage: mg_cluster_status.sh [-acevmnop|-h]
   -p: display the PODS status
   -h: display this help
 
-version: 1.1.3
+version: 1.1.4
 
 Customizable variables before running the script (Optional):
 export OC=[omc|omg]              #Change the must-gather tool                                           (Default: omc)
