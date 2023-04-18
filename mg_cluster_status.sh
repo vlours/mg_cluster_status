@@ -2,7 +2,7 @@
 ##################################################################
 # Script      # mg_cluster_status.sh
 # Description # Display basic health check on a Must-gather
-# @VERSION    # 1.1.4
+# @VERSION    # 1.1.5
 ##################################################################
 # Changelog   #
 # 1.0         # Initial
@@ -11,6 +11,7 @@
 # 1.1.2       # Fix filter for Unsuccessful PODs + titles updates
 # 1.1.3       # Add variables names in the Help message
 # 1.1.4       # Add color filters in MCP outputs
+# 1.1.5       # Color fixed in Node
 ##################################################################
 
 ##### Functions
@@ -146,7 +147,7 @@ if [[ ! -z ${NODES} ]]
 then
   fct_header "NODE STATUS"
   fct_title "Nodes"
-  ${OC} get nodes -o wide | sed -e "s/SchedulingDisabled/${yellowtext}&${resetcolor}/" -e "s/NotReady/${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
+  ${OC} get nodes -o wide | sed -e "s/SchedulingDisabled/${yellowtext}&${resetcolor}/" -e "s/NotReady/${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
   fct_title "CSRs"
   ${OC} get csr | sed -e "s/Pending/${redtext}&${resetcolor}/"
 fi

@@ -74,7 +74,7 @@ Usage: mg_cluster_status.sh [-acevmnop|-h]
   -p: display the PODS status
   -h: display this help
 
-version: 1.1.4
+version: 1.1.5
 
 Customizable variables before running the script (Optional):
 export OC=[omc|omg]              #Change the must-gather tool                                           (Default: omc)
