@@ -77,12 +77,12 @@ Additional paramaters:
   -d: display additional details on different modules (conditions, logs, ...)
   -h: display this help
 
-version: 1.1.6
+version: 1.1.7
 
 Customizable variables before running the script (Optional):
 export OC=[omc|omg|oc]           #Change the must-gather tool (use 'oc' to run the script against live cluster)   (Default: omc)
 export ALERT_TRUNK=<interger>    #Change the length of the Alert Descriptions                                     (Default: 100)
-export OPERATOR_TRUNK=<interger  #Change the length of the Operator Message in 'oc get co'                        (Default: 220)
+export CONDITION_TRUNK=<interger #Change the length of the Operator Message in 'oc get co'                        (Default: 220)
 export POD_TRUNK=<interger       #Change the length of the POD Message in 'oc get co'                             (Default: 100)
 export MIN_RESTART=<integer>     #Change the minimal number of restart when checking the POD restarts             (Default: 10)
 ```
