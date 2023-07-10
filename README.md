@@ -77,7 +77,7 @@ Additional paramaters:
   -d: display additional details on different modules (conditions, logs, ...)
   -h: display this help
 
-version: 1.1.7
+version: 1.1.8
 
 Customizable variables before running the script (Optional):
 export OC=[omc|omg|oc]           #Change the must-gather tool (use 'oc' to run the script against live cluster)   (Default: omc)
