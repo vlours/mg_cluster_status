@@ -1,32 +1,15 @@
 #!/bin/bash
 ##################################################################
-# Script      # mg_cluster_status.sh
-# Description # Display basic health check on a Must-gather
-# @VERSION    # 1.1.8
+# Script       # mg_cluster_status.sh
+# Description  # Display basic health check on a Must-gather
+# @VERSION     # 1.2.0
 ##################################################################
-# Changelog   #
-# 1.0         # Initial
-# 1.1         # Adding colors and fixing typos
-# 1.1.1       # MCO manage (%) + README update
-# 1.1.2       # Fix filter for Unsuccessful PODs + titles updates
-# 1.1.3       # Add variables names in the Help message
-# 1.1.4       # Add color filters in MCP outputs
-# 1.1.5       # Color fixed in Node
-# 1.1.6       # Allow to display detailled status for CO and
-#             # Add lastTransitionTime CO and
-#             # Add NotReady Node list with lastTransitionTime and
-#             # Allow to display detailled POD status
-# 1.1.7       # Include new status in "Unsuccessful PODs"
-#             # Allow to display detailled MCP degraded nodes state
-#             # Rewriting Unhealthy COs as [inputs] jq function has bug
-# 1.1.8       # Improve alerts details for nodes issues.
-#             # Highlight current MCP config instead of the desired one.
+# Changelog.md # List the modifications in the script.
+# README.md    # Describes the repository usage
 ##################################################################
 
 ##### Functions
 fct_help(){
-  VERSION=$(grep "@VERSION" $(which $0) 2>/dev/null | cut -d'#' -f3)
-  VERSION=${VERSION:-" N/A"}
   echo "Usage: $(basename $0) [-acevmnop] [-d] [-h]"
   echo "  -a: display the ALERTS"
   echo "  -c: display the CLUSTER CONTEXT"
@@ -38,7 +21,9 @@ fct_help(){
   echo "  -p: display the PODS status"
   echo -e "\nAdditional paramaters:"
   echo "  -d: display additional details on different modules (conditions, logs, ...)"
-  echo -e "  -h: display this help\n\nversion:${VERSION}"
+  echo "  -h: display this help and check for updated version"
+  MAX_RANDOM=1
+  fct_version
   echo -e "\nCustomizable variables before running the script (Optional):"
   EXPORT_TAB=32
   COMMENT_TAB=80
@@ -49,6 +34,49 @@ fct_help(){
   printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s %-1s\n" "export POD_TRUNK=<interger" "#Change the length of the POD Message in 'oc get co'" "(Default: ${DEFAULT_TRUNK})" "$(if [[ ! -z ${POD_TRUNK} ]]; then echo \(Current: ${POD_TRUNK}\); fi)"
   printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s %-1s\n" "export MIN_RESTART=<integer>" "#Change the minimal number of restart when checking the POD restarts" "(Default: ${DEFAULT_MIN_RESTART})" "$(if [[ ! -z ${MIN_RESTART} ]]; then echo \(Current: ${MIN_RESTART}\); fi)"
   exit 0
+}
+
+fct_version() {
+  Script=$(which $0)
+  if [[ "${Script}" == "bash" ]] || [[ -z ${Script} ]]
+  then
+    break
+  fi
+  VERSION=$(grep "@VERSION" ${Script} 2>/dev/null | grep -Ev "VERSION=" | cut -d'#' -f3)
+  VERSION=${VERSION:-" N/A"}
+  RANDOM_CHECK=$(awk -v min=1 -v max=${MAX_RANDOM} 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+  if [[ ${RANDOM_CHECK} == 1 ]]
+  then
+    My_TTY=$(who am i | awk '{print $2}')
+    NEW_VERSION=$(curl -s --connect-timeout 2 --max-time 4 "${SOURCE_RAW_URL}" 2>/dev/null | grep "@VERSION" | grep -Ev "VERSION=" | cut -d'#' -f3)
+    NEW_VERSION=${NEW_VERSION:-" N/A"}
+    if [[ "${VERSION}" != "${NEW_VERSION}" ]] && [[ "${NEW_VERSION}" != " N/A" ]] && [[ "${VERSION}" != " N/A" ]]
+    then
+      UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | Please considere to update. Thanks\nAvailable Version:\t${NEW_VERSION}\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
+    else
+      if [[ "${NEW_VERSION}" == " N/A" ]] && [[ "${VERSION}" != " N/A" ]]
+      then
+        case $(uname) in
+          "Darwin")
+            ls_option="-D +%s"
+            ;;
+          *)
+            ls_option="--time-style=+%s"
+            ;;
+        esac
+        SCRIPT_mtime=$(ls -l ${ls_option} $(which $0) | awk '{print $(NF-1)}' | sed -e "s/+//")
+        Current_time=$(date +%s)
+        Time_Gap=$[$Current_time - $SCRIPT_mtime]
+        if [[ ${Time_Gap} -gt ${Time_Gap_Alert} ]]
+        then
+          UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | The script $(basename ${0}) is older (${Time_Gap}) than $[${Time_Gap_Alert} / 864000] days.\nPlease consider to update it if a new version is available. Thanks\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
+        fi
+      else
+        UPDATE_MSG="Current Version:\t${greentext}${VERSION}${resetcolor} | The script is up-to-date. Thanks"
+      fi
+    fi
+  fi
+  echo -e "\n$UPDATE_MSG"
 }
 
 fct_header(){
@@ -131,17 +159,38 @@ fct_restart_container_details() {
   done
 }
 
-##### Default Variables
+##### Default/Main Variables
 # Default variables
 DEFAULT_OC="omc"
 DEFAULT_TRUNK="100"
 DEFAULT_CONDITION_TRUNK="220"
 DEFAULT_MIN_RESTART="10"
+# Source URLs & version time_gap
+SOURCE_RAW_URL="https://raw.githubusercontent.com/vlours/mg_cluster_status/main/mg_cluster_status.sh"
+SOURCE_URL="https://github.com/vlours/mg_cluster_status/"
+Time_Gap_Alert=${Time_Gap_Alert:-7776000}         # => 90 days gap
+# Color list
+graytext="\x1B[30m"
+redtext="\x1B[31m"
+greentext="\x1B[32m"
+yellowtext="\x1B[33m"
+bluetext="\x1B[34m"
+purpletext="\x1B[35m"
+cyantext="\x1B[36m"
+whitetext="\x1B[37m"
+resetcolor="\x1B[0m"
+# Max random number to check for update
+MAX_RANDOM=10
 
 ##### Main
 if [[ $# != 0 ]]
 then
-  while getopts acevmnopdh arg; do
+  if [[ $1 == "-" ]] || [[ $1 =~ ^[a-zA-Z] ]]
+  then
+    echo -e "Invalid option: ${1}\n"
+    fct_help && exit 1
+  fi
+  while getopts :acevmnopdh arg; do
   case $arg in
       a)
         ALERTS=true
@@ -205,16 +254,6 @@ CONDITION_TRUNK=${CONDITION_TRUNK:-${DEFAULT_CONDITION_TRUNK}}
 POD_TRUNK=${POD_TRUNK:-${DEFAULT_TRUNK}}
 # Minimal restart count for PODs
 MIN_RESTART=${MIN_RESTART:-${DEFAULT_MIN_RESTART}}
-# Color list
-graytext="\x1B[30m"
-redtext="\x1B[31m"
-greentext="\x1B[32m"
-yellowtext="\x1B[33m"
-bluetext="\x1B[34m"
-purpletext="\x1B[35m"
-cyantext="\x1B[36m"
-whitetext="\x1B[37m"
-resetcolor="\x1B[0m"
 
 if [[ ! -f $(which ${OC} 2>/dev/null) ]]
 then
@@ -356,3 +395,5 @@ then
   fct_title "Firing Alerts rules details"
   ${OC} alerts rules -o json | jq "\"ALERTNAME|LAST ACTIVE|NAMESPACE|WORKLOAD,LABEL,ENDPOINT,JOB,SERVICE OR NODE|SEVERITY|DESCRIPTION|\",(.data[] | select(.state == \"firing\") | .alerts | sort_by(.activeAt) | .[] | \"\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node else .labels.service end)|\(.labels.severity)|\(if (.annotations.description != null) then .annotations.description[0:${ALERT_TRUNK}] else .annotations.message end)\")" | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' | sed -e "s/ warning /${yellowtext}&${resetcolor}/" -e "s/ info /${greentext}&${resetcolor}/" -e "s/ critical /${redtext}&${resetcolor}/"
 fi
+
+fct_version
