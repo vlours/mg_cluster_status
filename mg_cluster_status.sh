@@ -38,7 +38,7 @@ fct_help(){
 
 fct_version() {
   Script=$(which $0)
-  if [[ "${Script}" == "bash" ]] || [[ -z ${Script} ]]
+  if [[ "${Script}" != "bash" ]] && [[ ! -z ${Script} ]]
   then
     VERSION=$(grep "@VERSION" ${Script} 2>/dev/null | grep -Ev "VERSION=" | cut -d'#' -f3)
     VERSION=${VERSION:-" N/A"}
