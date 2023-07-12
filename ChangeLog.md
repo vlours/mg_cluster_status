@@ -12,6 +12,19 @@
 
 --------
 
+## Template - Version 1.2.2
+
+### Minor updates - 1.2.2
+
+- None
+
+### Release updates - 1.2.2
+
+- Provide examples to run the script to be run from the Source Repository in the README.md file
+- Ensure that the `fct_version` will not trigger when the script will be called from a `curl` pull.
+
+--------
+
 ## Template - Version 1.2.1
 
 ### Minor updates - 1.2.1

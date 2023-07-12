@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.1
+# @VERSION     # 1.2.2
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -40,43 +40,42 @@ fct_version() {
   Script=$(which $0)
   if [[ "${Script}" == "bash" ]] || [[ -z ${Script} ]]
   then
-    break
-  fi
-  VERSION=$(grep "@VERSION" ${Script} 2>/dev/null | grep -Ev "VERSION=" | cut -d'#' -f3)
-  VERSION=${VERSION:-" N/A"}
-  RANDOM_CHECK=$(awk -v min=1 -v max=${MAX_RANDOM} 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-  if [[ ${RANDOM_CHECK} == 1 ]]
-  then
-    My_TTY=$(who am i | awk '{print $2}')
-    NEW_VERSION=$(curl -s --connect-timeout 2 --max-time 4 "${SOURCE_RAW_URL}" 2>/dev/null | grep "@VERSION" | grep -Ev "VERSION=" | cut -d'#' -f3)
-    NEW_VERSION=${NEW_VERSION:-" N/A"}
-    if [[ "${VERSION}" != "${NEW_VERSION}" ]] && [[ "${NEW_VERSION}" != " N/A" ]] && [[ "${VERSION}" != " N/A" ]]
+    VERSION=$(grep "@VERSION" ${Script} 2>/dev/null | grep -Ev "VERSION=" | cut -d'#' -f3)
+    VERSION=${VERSION:-" N/A"}
+    RANDOM_CHECK=$(awk -v min=1 -v max=${MAX_RANDOM} 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+    if [[ ${RANDOM_CHECK} == 1 ]]
     then
-      UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | Please considere to update. Thanks\nAvailable Version:\t${NEW_VERSION}\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
-    else
-      if [[ "${NEW_VERSION}" == " N/A" ]] && [[ "${VERSION}" != " N/A" ]]
+      My_TTY=$(who am i | awk '{print $2}')
+      NEW_VERSION=$(curl -s --connect-timeout 2 --max-time 4 "${SOURCE_RAW_URL}" 2>/dev/null | grep "@VERSION" | grep -Ev "VERSION=" | cut -d'#' -f3)
+      NEW_VERSION=${NEW_VERSION:-" N/A"}
+      if [[ "${VERSION}" != "${NEW_VERSION}" ]] && [[ "${NEW_VERSION}" != " N/A" ]] && [[ "${VERSION}" != " N/A" ]]
       then
-        case $(uname) in
-          "Darwin")
-            ls_option="-D +%s"
-            ;;
-          *)
-            ls_option="--time-style=+%s"
-            ;;
-        esac
-        SCRIPT_mtime=$(ls -l ${ls_option} $(which $0) | awk '{print $(NF-1)}' | sed -e "s/+//")
-        Current_time=$(date +%s)
-        Time_Gap=$[$Current_time - $SCRIPT_mtime]
-        if [[ ${Time_Gap} -gt ${Time_Gap_Alert} ]]
-        then
-          UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | The script $(basename ${0}) is older (${Time_Gap}) than $[${Time_Gap_Alert} / 864000] days.\nPlease consider to update it if a new version is available. Thanks\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
-        fi
+        UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | Please considere to update. Thanks\nAvailable Version:\t${NEW_VERSION}\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
       else
-        UPDATE_MSG="Current Version:\t${greentext}${VERSION}${resetcolor} | The script is up-to-date. Thanks"
+        if [[ "${NEW_VERSION}" == " N/A" ]] && [[ "${VERSION}" != " N/A" ]]
+        then
+          case $(uname) in
+            "Darwin")
+              ls_option="-D +%s"
+              ;;
+            *)
+              ls_option="--time-style=+%s"
+              ;;
+          esac
+          SCRIPT_mtime=$(ls -l ${ls_option} $(which $0) | awk '{print $(NF-1)}' | sed -e "s/+//")
+          Current_time=$(date +%s)
+          Time_Gap=$[$Current_time - $SCRIPT_mtime]
+          if [[ ${Time_Gap} -gt ${Time_Gap_Alert} ]]
+          then
+            UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | The script $(basename ${0}) is older (${Time_Gap}) than $[${Time_Gap_Alert} / 864000] days.\nPlease consider to update it if a new version is available. Thanks\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
+          fi
+        else
+          UPDATE_MSG="Current Version:\t${greentext}${VERSION}${resetcolor} | The script is up-to-date. Thanks"
+        fi
       fi
     fi
+    echo -e "\n$UPDATE_MSG"
   fi
-  echo -e "\n$UPDATE_MSG"
 }
 
 fct_header(){
