@@ -12,6 +12,18 @@
 
 --------
 
+## Template - Version 1.2.1
+
+### Minor updates - 1.2.1
+
+- None
+
+### Release updates - 1.2.1
+
+- Fix an issue with the mcp module where additional columns was displayed and the desired was still highlighted.
+
+--------
+
 ## Version 1.2.0
 
 ### Minor updates - 1.2.0

@@ -77,7 +77,7 @@ Additional paramaters:
   -d: display additional details on different modules (conditions, logs, ...)
   -h: display this help and check for updated version
 
-Current Version:  1.2.0 - The script is up-to-date. Thanks
+Current Version:  1.X.X - The script is up-to-date. Thanks
 
 Customizable variables before running the script (Optional):
 export OC=[omc|omg|oc]           #Change the must-gather tool (use 'oc' to run the script against live cluster)   (Default: omc)
