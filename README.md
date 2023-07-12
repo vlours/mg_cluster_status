@@ -72,6 +72,7 @@ Usage: mg_cluster_status.sh [-acevmnop] [-d] [-h]
   -n: display the NODES status
   -o: display the OPERATORS status
   -p: display the PODS status
+  -s: display the STATIC PODs status
 
 Additional paramaters:
   -d: display additional details on different modules (conditions, logs, ...)
@@ -104,4 +105,22 @@ export OC=/usr/bin/omc    # Where to locate the `omc` command     - Default: omc
 export ALERT_TRUNK=100    # Length to trunk alerts descriptions   - Default: 100
 export OPERATOR_TRUNK=220 # Length to trunk Operator descriptions - Default: 220
 export MIN_RESTART=5      # Minimal restart count for PODs        - Default: 5
+```
+
+#### Pulling and running the script from the Source repository
+
+In some case, you may want to run the script again a live cluster and cannot pull or deploy the script on a server.
+This is totaly faisable if you have internet access from your server.
+The only requirement will be to have `curl` installed, then you should be able to run the command:
+
+```bash
+export OC='/path_to/oc'                                                           #Set the OC variable to your `oc` command
+URI=raw.githubusercontent.com/vlours/mg_cluster_status/main/mg_cluster_status.sh  #Ensure you are accessing the RAW version of the script
+bash <(curl -s https://${URI})                                                    #This will pull the script from the Repo and execute it from memory.
+```
+
+and if you want to use the script with an option, simply add it at the end of the command:
+
+```bash
+bash <(curl -s https://${URI}) -h
 ```
