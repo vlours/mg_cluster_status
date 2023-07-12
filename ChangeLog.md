@@ -1,6 +1,6 @@
 # MG_CLUSTER_STATUS ChangeLog
 
-## Template - Version 1.x.x
+## Version 1.x.x - Template
 
 ### Minor updates - 1.x.x
 
@@ -12,7 +12,7 @@
 
 --------
 
-## Template - Version 1.2.2
+## Version 1.2.2
 
 ### Minor updates - 1.2.2
 
@@ -20,12 +20,14 @@
 
 ### Release updates - 1.2.2
 
-- Provide examples to run the script to be run from the Source Repository in the README.md file
+- Provide examples to run the script to be run from the Source Repository in the README.md file (issue #5)
 - Ensure that the `fct_version` will not trigger when the script will be called from a `curl` pull.
+- Include the Static PODs status (Issue #3), allowing to display the revision ConfigMap and Installer status with the `-d` option.
+- Ensure the Alerts are currently only displayed with `omc` and `omg` commands. Awaiting for the issue #6 to be implemented for the `oc` command.
 
 --------
 
-## Template - Version 1.2.1
+## Version 1.2.1
 
 ### Minor updates - 1.2.1
 

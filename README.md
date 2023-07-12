@@ -72,6 +72,7 @@ Usage: mg_cluster_status.sh [-acevmnop] [-d] [-h]
   -n: display the NODES status
   -o: display the OPERATORS status
   -p: display the PODS status
+  -s: display the STATIC PODs status
 
 Additional paramaters:
   -d: display additional details on different modules (conditions, logs, ...)

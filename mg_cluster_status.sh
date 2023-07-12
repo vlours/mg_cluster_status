@@ -19,8 +19,9 @@ fct_help(){
   echo "  -n: display the NODES status"
   echo "  -o: display the OPERATORS status"
   echo "  -p: display the PODS status"
+  echo "  -s: display the STATIC PODs status"
   echo -e "\nAdditional paramaters:"
-  echo "  -d: display additional details on different modules (conditions, logs, ...)"
+  echo "  -d: display additional details on specific modules (conditions, logs, ...)"
   echo "  -h: display this help and check for updated version"
   MAX_RANDOM=1
   fct_version
@@ -73,8 +74,8 @@ fct_version() {
           UPDATE_MSG="Current Version:\t${greentext}${VERSION}${resetcolor} | The script is up-to-date. Thanks"
         fi
       fi
+      echo -e "\n$UPDATE_MSG"
     fi
-    echo -e "\n$UPDATE_MSG"
   fi
 }
 
@@ -189,7 +190,7 @@ then
     echo -e "Invalid option: ${1}\n"
     fct_help && exit 1
   fi
-  while getopts :acevmnopdh arg; do
+  while getopts :acevmnopsdh arg; do
   case $arg in
       a)
         ALERTS=true
@@ -215,6 +216,9 @@ then
       p)
         PODS=true
         ;;
+      s)
+        STATICPOD=true
+        ;;
       d)
         DETAILS=true
         ;;
@@ -236,6 +240,7 @@ else
   NODES=true
   OPERATORS=true
   PODS=true
+  STATICPOD=true
 fi
 
 if [[ $# == 1 ]] && [[ ! -z ${DETAILS} ]]
@@ -367,6 +372,30 @@ then
   fi
 fi
 
+if [[ ! -z ${STATICPOD} ]]
+then
+  fct_header "STATIC PODs"
+  fct_title "Revision Status"
+  for static in etcd kubeapiserver kubecontrollermanager kubescheduler
+  do
+    printf "${static}|"
+    ${OC} get ${static} cluster -o json | jq -r '.status.conditions[] | select(((.type == "NodeInstallerProgressing") or (.type == "APIServerDeploymentProgressing")) and (.message != null)) | ": \(.message)"'
+  done | column -t -s'|'
+  if [[ ! -z ${DETAILS} ]]
+  then
+    fct_title "ConfigMap Revision details & installer"
+    for namespace in openshift-etcd openshift-kube-apiserver openshift-kube-controller-manager openshift-kube-scheduler
+    do
+      echo "--- ${namespace} ---"
+      echo "### Config Maps:"
+      ${OC} get cm -n ${namespace} -o json | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -s '|' -t | tail -5
+      echo "### Installer Pods (up to 10):"
+      ${OC} get pod -n ${namespace} -l app=installer | tail -10
+      echo
+    done
+  fi
+fi
+
 if [[ ! -z ${ETCD} ]]
 then
   fct_header "ETCD STATUS"
@@ -389,10 +418,15 @@ fi
 if [[ ! -z ${ALERTS} ]]
 then
   fct_header "ALERTS STATUS"
-  fct_title "firing Alerts"
-  ${OC} alerts rules -s firing | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/"
-  fct_title "Firing Alerts rules details"
-  ${OC} alerts rules -o json | jq "\"ALERTNAME|LAST ACTIVE|NAMESPACE|WORKLOAD,LABEL,ENDPOINT,JOB,SERVICE OR NODE|SEVERITY|DESCRIPTION|\",(.data[] | select(.state == \"firing\") | .alerts | sort_by(.activeAt) | .[] | \"\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node else .labels.service end)|\(.labels.severity)|\(if (.annotations.description != null) then .annotations.description[0:${ALERT_TRUNK}] else .annotations.message end)\")" | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' | sed -e "s/ warning /${yellowtext}&${resetcolor}/" -e "s/ info /${greentext}&${resetcolor}/" -e "s/ critical /${redtext}&${resetcolor}/"
+  if [[ "${OC}" == "omg" ]] || [[ "${OC}" == "omc" ]]
+  then
+    fct_title "firing Alerts"
+    ${OC} alerts rules -s firing | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/"
+    fct_title "Firing Alerts rules details"
+    ${OC} alerts rules -o json | jq "\"ALERTNAME|LAST ACTIVE|NAMESPACE|WORKLOAD,LABEL,ENDPOINT,JOB,SERVICE OR NODE|SEVERITY|DESCRIPTION|\",(.data[] | select(.state == \"firing\") | .alerts | sort_by(.activeAt) | .[] | \"\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node else .labels.service end)|\(.labels.severity)|\(if (.annotations.description != null) then .annotations.description[0:${ALERT_TRUNK}] else .annotations.message end)\")" | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' | sed -e "s/ warning /${yellowtext}&${resetcolor}/" -e "s/ info /${greentext}&${resetcolor}/" -e "s/ critical /${redtext}&${resetcolor}/"
+  else
+    fct_title "Under development - Requested in Issue #6"
+  fi
 fi
 
 fct_version
