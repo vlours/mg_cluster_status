@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.3
+
+### Minor updates - 1.2.3
+
+- None
+
+### Release updates - 1.2.3
+
+- Improvements in the PODs `details` section
+- Improve the help to display the Options with available details
+- Enforce `fct_title_details` for the related titles
+
+--------
+
 ## Version 1.2.2
 
 ### Minor updates - 1.2.2
