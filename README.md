@@ -123,7 +123,7 @@ This is totaly faisable if you have internet access from your server.
 The only requirement will be to have `curl` installed, then you should be able to run the command:
 
 ```bash
-export OC=$(which oc)                                                             #Set the OC variable to your `oc` command
+export OC=$(which oc | awk '{print $NF}')                                         #Set the OC variable to your `oc` command
 URI=raw.githubusercontent.com/vlours/mg_cluster_status/main/mg_cluster_status.sh  #Ensure you are accessing the RAW version of the script
 bash <(curl -s https://${URI})                                                    #This will pull the script from the Repo and execute it from memory.
 ```

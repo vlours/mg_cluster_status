@@ -37,6 +37,15 @@ fct_help(){
   COMMENT_TAB=80
   DEFAULT_TAB=10
   CURRENT_TAB=10
+  if [[ ! -z ${OC} ]]
+  then
+    OC_LENGTH=$(echo "[${OC}]" | wc -c | awk '{print $1}')
+    if [[ ${OC_LENGTH} -gt ${CURRENT_TAB} ]]
+    then
+      CURRENT_TAB=${OC_LENGTH}
+    fi
+  fi
+
   printf "|%-${EXPORT_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
   printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "Options" "Description" "[Default]" "[Current]"
   printf "|%-${EXPORT_TAB}s-|-%-${COMMENT_TAB}s-|-%-${DEFAULT_TAB}s-|-%-${CURRENT_TAB}s|\n" |tr \  '-'
