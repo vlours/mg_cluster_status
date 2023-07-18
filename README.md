@@ -123,13 +123,19 @@ This is totaly faisable if you have internet access from your server.
 The only requirement will be to have `curl` installed, then you should be able to run the command:
 
 ```bash
-export OC='/path_to/oc'                                                           #Set the OC variable to your `oc` command
+export OC=$(which oc)                                                             #Set the OC variable to your `oc` command
 URI=raw.githubusercontent.com/vlours/mg_cluster_status/main/mg_cluster_status.sh  #Ensure you are accessing the RAW version of the script
 bash <(curl -s https://${URI})                                                    #This will pull the script from the Repo and execute it from memory.
 ```
 
-and if you want to use the script with an option, simply add it at the end of the command:
+And if you want to use the script with an option, simply add it at the end of the command:
 
 ```bash
 bash <(curl -s https://${URI}) -h
+```
+
+Finally, if your DNS is providing IPV4 and IPV6 resolution and you want to force the connection through the IPV4 (or IPV6), simply add the `-4` (or `-6`)option in the curl command:
+
+```bash
+bash <(curl -s -4 https://${URI})
 ```
