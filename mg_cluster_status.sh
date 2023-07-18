@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.2
+# @VERSION     # 1.2.3
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -10,35 +10,58 @@
 
 ##### Functions
 fct_help(){
-  echo "Usage: $(basename $0) [-acevmnop] [-d] [-h]"
-  echo "  -a: display the ALERTS"
-  echo "  -c: display the CLUSTER CONTEXT"
-  echo "  -e: display the ETCD status"
-  echo "  -v: display the EVENTS"
-  echo "  -m: display the MCO status"
-  echo "  -n: display the NODES status"
-  echo "  -o: display the OPERATORS status"
-  echo "  -p: display the PODS status"
-  echo "  -s: display the STATIC PODs status"
-  echo -e "\nAdditional paramaters:"
-  echo "  -d: display additional details on specific modules (conditions, logs, ...)"
-  echo "  -h: display this help and check for updated version"
-  MAX_RANDOM=1
-  fct_version
+  echo "usage: $(basename $0) [-acevmnops] [-d] [-h]"
+  OPTION_TAB=8
+  DESCR_TAB=63
+  DETAILS_TAB=10
+  printf "|%${OPTION_TAB}s---%-${DESCR_TAB}s---%-${DETAILS_TAB}s|\n" |tr \  '-'
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "Options" "Description" "[Details]"
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" |tr \  '-'
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-a" "display the ALERTS" ""
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-c" "display the CLUSTER CONTEXT" ""
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-e" "display the ETCD status" ""
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-v" "display the EVENTS" ""
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-m" "display the MCO status" ""
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-n" "display the NODES status" "[Y]"
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-o" "display the OPERATORS status" "[Y]"
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-p" "display the PODS status" "[Y]"
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-s" "display the STATIC PODs status" "[Y]"
+  printf "|%${OPTION_TAB}s-|-%-${DESCR_TAB}s-|-%-${DETAILS_TAB}s|\n" |tr \  '-'
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "" "Additional Options:" ""
+  printf "|%${OPTION_TAB}s-|-%-${DESCR_TAB}s-|-%-${DETAILS_TAB}s|\n" |tr \  '-'
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-d" "display additional details on specific Options (as noted above)" ""
+  printf "|%${OPTION_TAB}s | %-${DESCR_TAB}s | %-${DETAILS_TAB}s|\n" "-h" "display this help and check for updated version" ""
+  printf "|%${OPTION_TAB}s---%-${DESCR_TAB}s---%-${DETAILS_TAB}s|\n" |tr \  '-'
   echo -e "\nCustomizable variables before running the script (Optional):"
   EXPORT_TAB=32
   COMMENT_TAB=80
-  DEFAULT_TAB=14
-  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s %-1s\n" "export OC=[omc|omg|oc]" "#Change the must-gather tool (use 'oc' to run the script against live cluster)" "(Default: omc)" "$(if [[ ! -z ${OC} ]]; then echo \(Current: ${OC}\); fi)"
-  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s %-1s\n" "export ALERT_TRUNK=<interger>" "#Change the length of the Alert Descriptions" "(Default: ${DEFAULT_TRUNK})" "$(if [[ ! -z ${ALERT_TRUNK} ]]; then echo \(Current: ${ALERT_TRUNK}\); fi)"
-  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s %-1s\n" "export CONDITION_TRUNK=<interger" "#Change the length of the Operator Message in 'oc get co'" "(Default: ${DEFAULT_CONDITION_TRUNK})" "$(if [[ ! -z ${CONDITION_TRUNK} ]]; then echo \(Current: ${CONDITION_TRUNK}\); fi)"
-  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s %-1s\n" "export POD_TRUNK=<interger" "#Change the length of the POD Message in 'oc get co'" "(Default: ${DEFAULT_TRUNK})" "$(if [[ ! -z ${POD_TRUNK} ]]; then echo \(Current: ${POD_TRUNK}\); fi)"
-  printf "%-${EXPORT_TAB}s %-${COMMENT_TAB}s %-${DEFAULT_TAB}s %-1s\n" "export MIN_RESTART=<integer>" "#Change the minimal number of restart when checking the POD restarts" "(Default: ${DEFAULT_MIN_RESTART})" "$(if [[ ! -z ${MIN_RESTART} ]]; then echo \(Current: ${MIN_RESTART}\); fi)"
+  DEFAULT_TAB=10
+  CURRENT_TAB=10
+  if [[ ! -z ${OC} ]]
+  then
+    OC_LENGTH=$(echo "[${OC}]" | wc -c | awk '{print $1}')
+    if [[ ${OC_LENGTH} -gt ${CURRENT_TAB} ]]
+    then
+      CURRENT_TAB=${OC_LENGTH}
+    fi
+  fi
+
+  printf "|%-${EXPORT_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
+  printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "Options" "Description" "[Default]" "[Current]"
+  printf "|%-${EXPORT_TAB}s-|-%-${COMMENT_TAB}s-|-%-${DEFAULT_TAB}s-|-%-${CURRENT_TAB}s|\n" |tr \  '-'
+  printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "export OC=[omc|omg|oc]" "#Change the must-gather tool (use 'oc' to run the script against live cluster)" "[${DEFAULT_OC}]" "$(if [[ ! -z ${OC} ]]; then echo "[${OC}]"; fi)"
+  printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "export ALERT_TRUNK=<interger>" "#Change the length of the Alert Descriptions" "[${DEFAULT_TRUNK}]" "$(if [[ ! -z ${ALERT_TRUNK} ]]; then echo "[${ALERT_TRUNK}]"; fi)"
+  printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "export CONDITION_TRUNK=<interger" "#Change the length of the Operator Message in 'oc get co'" "[${DEFAULT_CONDITION_TRUNK}]" "$(if [[ ! -z ${CONDITION_TRUNK} ]]; then echo "[${CONDITION_TRUNK}]"; fi)"
+  printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "export POD_TRUNK=<interger" "#Change the length of the POD Message in 'oc get co'" "[${DEFAULT_TRUNK}]" "$(if [[ ! -z ${POD_TRUNK} ]]; then echo "[${POD_TRUNK}]"; fi)"
+  printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "export MIN_RESTART=<integer>" "#Change the minimal number of restart when checking the POD restarts" "[${DEFAULT_MIN_RESTART}]" "$(if [[ ! -z ${MIN_RESTART} ]]; then echo "[${MIN_RESTART}]"; fi)"
+  printf "|%-${EXPORT_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
+  MAX_RANDOM=1
+  fct_version
   exit 0
 }
 
 fct_version() {
-  Script=$(which $0)
+  Script=$(which $0 2>/dev/null)
   if [[ "${Script}" != "bash" ]] && [[ ! -z ${Script} ]]
   then
     VERSION=$(grep "@VERSION" ${Script} 2>/dev/null | grep -Ev "VERSION=" | cut -d'#' -f3)
@@ -98,11 +121,11 @@ fct_title_details() {
 
 fct_unsuccessful_pod_details() {
   ALL_PODS_JSON=$(${OC} get pod -A -o json)
-  Pending_PODs=$(echo "${ALL_PODS_JSON}" | jq -r ".items[] | select((.metadata.deletionTimestamp == null) and (.status.phase == \"Pending\")) | .metadata.namespace + \"/\" + .metadata.name + \"|\" + .metadata.creationTimestamp + \"|\" + .status.phase + \"|\" + (.status.conditions[] | select((.type == \"PodScheduled\") and (.status != \"True\")) | .message[0:${POD_TRUNK}])")
+  Pending_PODs=$(echo "${ALL_PODS_JSON}" | jq -r ".items[] | select((.metadata.deletionTimestamp == null) and (.status.phase == \"Pending\")) | .metadata.namespace + \"/\" + .metadata.name + \"|\" + .metadata.creationTimestamp + \"|R-\" + .status.phase + \"-R|\" + (if ((.status.conditions[] | select(.type == \"PodScheduled\") | .message) != null) then (.status.conditions[] | select(.type == \"PodScheduled\") | .message[0:${POD_TRUNK}]) elif ((.status.conditions[] | select(.type == \"ContainersReady\") | .message) != null) then (.status.conditions[] | select(.type == \"ContainersReady\") | .message[0:${POD_TRUNK}]) else \"null\" end)")
   if [[ ! -z ${Pending_PODs} ]]
   then
     fct_title_details "Unsuccessful PODs - Pending - Details"
-    echo -e "NAME|creationTimestamp|STATUS|Message\n${Pending_PODs}" | column -t -s'|' | sed -e "s/Pending\|ContainerCreating/${redtext}&${resetcolor}/"
+    echo -e "NAME|creationTimestamp|STATUS|Message\n${Pending_PODs}" | column -t -s'|' | sed -e "s/R-\([0-9a-zA-Z \.\-]*\)-R/${redtext}\1    ${resetcolor}/"
   fi
   Terminating_PODs=$(echo "${ALL_PODS_JSON}" | jq -r ".items[] | select((.metadata.deletionTimestamp != null) and (.status.phase == \"Running\")) | .metadata.namespace + \"/\" + .metadata.name + \"|\" + .metadata.creationTimestamp + \"|\" + .metadata.deletionTimestamp + \"|(\" + (.metadata.deletionGracePeriodSeconds|tostring) + \")|Terminating|\" + (.status.conditions[] | select((.type == \"Ready\") and (.status != \"True\")) | .message[0:${POD_TRUNK}])")
   if [[ ! -z ${Terminating_PODs} ]]
@@ -110,11 +133,11 @@ fct_unsuccessful_pod_details() {
     fct_title_details "Unsuccessful PODs - Terminating - Details"
     echo -e "NAME|creationTimestamp|deletionTimestamp|(GracePeriodSeconds)|STATUS|Message\n${Terminating_PODs}" | column -t -s'|' | sed -e "s/Terminating/${yellowtext}&${resetcolor}/"
   fi
-  Failed_PODs=$(echo "${ALL_PODS_JSON}" | jq -r ".items[] | select((.metadata.deletionTimestamp == null) and ((.status.phase == \"Failed\") or ((.containerStatuses != null) and (.containerStatuses[].state | to_entries[] | .value.reason == \"CrashLoopBackOff\")))) | .metadata.namespace + \"/\" + .metadata.name + \"|\" + .metadata.creationTimestamp + \"|\" + (.status.conditions[] | select((.type == \"Ready\") and (.status != \"True\")) | .lastTransitionTime) + \"|\" + (if ((.containerStatuses != null) and (.containerStatuses[].state | to_entries[] | .value.reason == \"CrashLoopBackOff\")) then \"CrashLoopBackOff\" else .status.phase end) + \"|\" + (.status.conditions[] | select((.type == \"Ready\") and (.status != \"True\")) | .message[0:${POD_TRUNK}])")
+  Failed_PODs=$(echo "${ALL_PODS_JSON}"| jq -r ".items[] | select((.metadata.deletionTimestamp == null) and (.status.phase == \"Running\") and (.status | (.containerStatuses != null) and (.containerStatuses[].state | to_entries[] | .key == \"waiting\"))) | .metadata.namespace + \"/\" + .metadata.name + \"|\" + .metadata.creationTimestamp + \"|\" + (.status.conditions[] | select(.type == \"Ready\") | .lastTransitionTime) + \"|R-\" + (.status.containerStatuses[] | select(.state.waiting.reason != null) | .state.waiting.reason) + \"-R|\" + (.status.conditions[] | select(.type == \"Ready\") | .message[0:${POD_TRUNK}])")
   if [[ ! -z ${Failed_PODs} ]]
   then
     fct_title_details "Unsuccessful PODs - Failed - Details"
-    echo -e "NAME|creationTimestamp|lastTransitionTime|STATUS|Message\n${Failed_PODs}" | column -t -s'|' | sed -e "s/Failed/${redtext}&${resetcolor}/"
+    echo -e "NAME|creationTimestamp|lastTransitionTime|STATUS|Message\n${Failed_PODs}" | column -t -s'|' | sed -e "s/R-\([0-9a-zA-Z \.\-]*\)-R/${redtext}\1    ${resetcolor}/"
   fi
 }
 
@@ -311,7 +334,7 @@ then
   UNHEALTHY_OPERATORS=$(${OC} get co -o json | jq -r '.items[] | select(.status.conditions[] | ((.type == "Available") and (.status == "False")) or ((.type == "Progressing") and (.status == "True")) or ((.type == "Degraded") and (.status == "True"))) | .metadata.name' | sort -u)
   if [[ ! -z ${DETAILS} ]] && [[ ! -z ${UNHEALTHY_OPERATORS} ]]
   then
-    fct_title "Unhealthy Cluster Operators - Details"
+    fct_title_details "Unhealthy Cluster Operators - Details"
     for OPERATOR in ${UNHEALTHY_OPERATORS}
     do
       ${OC} get co -o json ${OPERATOR} | jq -r '"##### " + .metadata.name + " #####",(.status.conditions[] | select((.type == "Available") or (.type == "Progressing") or (.type == "Degraded")))'
@@ -351,7 +374,7 @@ if [[ ! -z ${PODS} ]]
 then
   fct_header "POD STATUS"
   fct_title "Unsuccessful PODs"
-  ${OC} get pod -A -o wide | grep -Ev "Running|Completed|Succeeded" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending/${yellowtext}&${resetcolor}/" -e "s/ContainerCreating/${yellowtext}&${resetcolor}/" -e "s/ImagePullBackOff/${yellowtext}&${resetcolor}/" -e "s/PodInitializing/${yellowtext}&${resetcolor}/" -e "s/ErrImagePull/${yellowtext}&${resetcolor}/" -e "s/Error/${redtext}&${resetcolor}/" -e "s/CrashLoopBackOff/${redtext}&${resetcolor}/" -e "s/Failed/${redtext}&${resetcolor}/"
+  ${OC} get pod -A -o wide | grep -Ev "Running|Completed|Succeeded" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending/${yellowtext}&${resetcolor}/" -e "s/ContainerCreating/${yellowtext}&${resetcolor}/" -e "s/ImagePullBackOff/${yellowtext}&${resetcolor}/" -e "s/PodInitializing/${yellowtext}&${resetcolor}/" -e "s/ErrImagePull/${yellowtext}&${resetcolor}/" -e "s/ Error/${redtext}&${resetcolor}/" -e "s/CrashLoopBackOff/${redtext}&${resetcolor}/" -e "s/Failed/${redtext}&${resetcolor}/" -e "s/CreateContainerError/${redtext}&${resetcolor}/" -e "s/CreateContainerConfigError/${redtext}&${resetcolor}/"
   if [[ ! -z ${DETAILS} ]]
   then
     fct_unsuccessful_pod_details
@@ -383,13 +406,13 @@ then
   done | column -t -s'|'
   if [[ ! -z ${DETAILS} ]]
   then
-    fct_title "ConfigMap Revision details & installer"
+    fct_title "Revision details - ConfigMap & installer"
     for namespace in openshift-etcd openshift-kube-apiserver openshift-kube-controller-manager openshift-kube-scheduler
     do
-      echo "--- ${namespace} ---"
-      echo "### Config Maps:"
+      fct_title_details "${namespace}"
+      echo "--- Config Maps ---"
       ${OC} get cm -n ${namespace} -o json | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -s '|' -t | tail -5
-      echo "### Installer Pods (up to 10):"
+      echo "--- Installer Pods (up to 10) ---"
       ${OC} get pod -n ${namespace} -l app=installer | tail -10
       echo
     done

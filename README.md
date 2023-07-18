@@ -63,29 +63,38 @@ mg_check
 using the `-h` option will display the help and provide the list of the available options, and the version of the script.
 
 ```text
-Usage: mg_cluster_status.sh [-acevmnop] [-d] [-h]
-  -a: display the ALERTS
-  -c: display the CLUSTER CONTEXT
-  -e: display the ETCD status
-  -v: display the EVENTS
-  -m: display the MCO status
-  -n: display the NODES status
-  -o: display the OPERATORS status
-  -p: display the PODS status
-  -s: display the STATIC PODs status
-
-Additional paramaters:
-  -d: display additional details on different modules (conditions, logs, ...)
-  -h: display this help and check for updated version
-
-Current Version:  1.X.X - The script is up-to-date. Thanks
+usage: mg_cluster_status.sh [-acevmnops] [-d] [-h]
+|---------------------------------------------------------------------------------------|
+| Options | Description                                                     | [Details] |
+|---------|-----------------------------------------------------------------|-----------|
+|      -a | display the ALERTS                                              |           |
+|      -c | display the CLUSTER CONTEXT                                     |           |
+|      -e | display the ETCD status                                         |           |
+|      -v | display the EVENTS                                              |           |
+|      -m | display the MCO status                                          |           |
+|      -n | display the NODES status                                        | [Y]       |
+|      -o | display the OPERATORS status                                    | [Y]       |
+|      -p | display the PODS status                                         | [Y]       |
+|      -s | display the STATIC PODs status                                  | [Y]       |
+|---------|-----------------------------------------------------------------|-----------|
+|         | Additional Options:                                             |           |
+|---------|-----------------------------------------------------------------|-----------|
+|      -d | display additional details on specific Options (as noted above) |           |
+|      -h | display this help and check for updated version                 |           |
+|---------------------------------------------------------------------------------------|
 
 Customizable variables before running the script (Optional):
-export OC=[omc|omg|oc]           #Change the must-gather tool (use 'oc' to run the script against live cluster)   (Default: omc)
-export ALERT_TRUNK=<interger>    #Change the length of the Alert Descriptions                                     (Default: 100)
-export CONDITION_TRUNK=<interger #Change the length of the Operator Message in 'oc get co'                        (Default: 220)
-export POD_TRUNK=<interger       #Change the length of the POD Message in 'oc get co'                             (Default: 100)
-export MIN_RESTART=<integer>     #Change the minimal number of restart when checking the POD restarts             (Default: 10)
+|---------------------------------------------------------------------------------------------------------------------------------------------|
+|Options                          | Description                                                                      | [Default]  | [Current] |
+|---------------------------------|----------------------------------------------------------------------------------|------------|-----------|
+|export OC=[omc|omg|oc]           | #Change the must-gather tool (use 'oc' to run the script against live cluster)   | [omc]      |           |
+|export ALERT_TRUNK=<interger>    | #Change the length of the Alert Descriptions                                     | [100]      |           |
+|export CONDITION_TRUNK=<interger | #Change the length of the Operator Message in 'oc get co'                        | [220]      |           |
+|export POD_TRUNK=<interger       | #Change the length of the POD Message in 'oc get co'                             | [100]      |           |
+|export MIN_RESTART=<integer>     | #Change the minimal number of restart when checking the POD restarts             | [10]       |           |
+|---------------------------------------------------------------------------------------------------------------------------------------------|
+
+Current Version:  1.X.X - The script is up-to-date. Thanks
 ```
 
 You can mix the options to display only the desired status:
@@ -114,13 +123,19 @@ This is totaly faisable if you have internet access from your server.
 The only requirement will be to have `curl` installed, then you should be able to run the command:
 
 ```bash
-export OC='/path_to/oc'                                                           #Set the OC variable to your `oc` command
+export OC=$(which oc | awk '{print $NF}')                                         #Set the OC variable to your `oc` command
 URI=raw.githubusercontent.com/vlours/mg_cluster_status/main/mg_cluster_status.sh  #Ensure you are accessing the RAW version of the script
 bash <(curl -s https://${URI})                                                    #This will pull the script from the Repo and execute it from memory.
 ```
 
-and if you want to use the script with an option, simply add it at the end of the command:
+And if you want to use the script with an option, simply add it at the end of the command:
 
 ```bash
 bash <(curl -s https://${URI}) -h
+```
+
+Finally, if your DNS is providing IPV4 and IPV6 resolution and you want to force the connection through the IPV4 (or IPV6), simply add the `-4` (or `-6`)option in the curl command:
+
+```bash
+bash <(curl -s -4 https://${URI})
 ```

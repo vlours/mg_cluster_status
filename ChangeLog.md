@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.3
+
+### Minor updates - 1.2.3
+
+- None
+
+### Release updates - 1.2.3
+
+- Improvements in the PODs `details` section
+- Improving the help to display the Options with available details
+- Enforcing the function `fct_title_details` for the related titles
+- Providing guidance to run the command remotly using IPV4 or IPV6
+
+--------
+
 ## Version 1.2.2
 
 ### Minor updates - 1.2.2
