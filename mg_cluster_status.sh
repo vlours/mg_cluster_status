@@ -10,7 +10,12 @@
 
 ##### Functions
 fct_help(){
-  echo "usage: $(basename $0) [-acevmnops] [-d] [-h]"
+  Script=$(which $0 2>/dev/null)
+  if [[ "${Script}" != "bash" ]] && [[ ! -z ${Script} ]]
+  then
+    ScriptName=$(basename $0)
+  fi
+  echo "usage: ${ScriptName} [-acevmnops] [-d] [-h]"
   OPTION_TAB=8
   DESCR_TAB=63
   DETAILS_TAB=10
@@ -184,6 +189,7 @@ fct_restart_container_details() {
 
 ##### Default/Main Variables
 # Default variables
+ScriptName="mg_cluster_status.sh"
 DEFAULT_OC="omc"
 DEFAULT_TRUNK="100"
 DEFAULT_CONDITION_TRUNK="220"

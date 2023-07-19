@@ -12,6 +12,17 @@
 
 --------
 
+## Version 1.2.4
+
+### Minor updates - 1.2.4
+
+- None
+
+### Release updates - 1.2.4
+
+- Fix an issue in the help displaying the wrong script name when executed from the source.
+
+--------
 ## Version 1.2.3
 
 ### Minor updates - 1.2.3
