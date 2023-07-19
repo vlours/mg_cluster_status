@@ -20,9 +20,11 @@
 
 ### Release updates - 1.2.4
 
-- Fix an issue in the help displaying the wrong script name when executed from the source.
+- Fixing an issue in the help displaying the wrong script name when executed from the source.
+- Fixing the display of the 'MCP state & versions' where the desired and status version were mixed.
 
 --------
+
 ## Version 1.2.3
 
 ### Minor updates - 1.2.3
