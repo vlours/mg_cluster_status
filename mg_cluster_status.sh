@@ -467,9 +467,9 @@ then
   else
     ERR_MSG="Unable to retrieve and display the Alerts"
     fct_title "firing Alerts"
-    echo "${purpletext}${ERR_MSG}${resetcolor}"
+    echo -e "${purpletext}${ERR_MSG}${resetcolor}"
     fct_title "Firing Alerts rules details"
-    echo "${purpletext}${ERR_MSG}${resetcolor}"
+    echo -e "${purpletext}${ERR_MSG}${resetcolor}"
   fi
 fi
 
