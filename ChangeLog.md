@@ -12,6 +12,22 @@
 
 --------
 
+## Version 1.2.4
+
+### Minor updates - 1.2.4
+
+- None
+
+### Release updates - 1.2.4
+
+- Fixing an issue in the help displaying the wrong script name when executed from the source.
+- Fixing the display of the 'MCP state & versions' where the desired and status version were mixed.
+- Adding colors in the help section to display the options, and the default and current settings.
+- Implementing the Alerts for live clusters (Issue #6)
+- Improving the Alerts display with additional colors
+
+--------
+
 ## Version 1.2.3
 
 ### Minor updates - 1.2.3
@@ -35,7 +51,7 @@
 
 ### Release updates - 1.2.2
 
-- Provide examples to run the script to be run from the Source Repository in the README.md file (issue #5)
+- Provide examples to run the script to be run from the Source Repository in the README.md file (Issue #5)
 - Ensure that the `fct_version` will not trigger when the script will be called from a `curl` pull.
 - Include the Static PODs status (Issue #3), allowing to display the revision ConfigMap and Installer status with the `-d` option.
 - Ensure the Alerts are currently only displayed with `omc` and `omg` commands. Awaiting for the issue #6 to be implemented for the `oc` command.
