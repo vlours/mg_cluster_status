@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.4
+# @VERSION     # 1.2.5
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -10,7 +10,7 @@
 
 ##### Functions
 fct_help(){
-  Script=$(which $0 2>/dev/null)
+  Script=$(which $0 2>${STD_ERR})
   if [[ "${Script}" != "bash" ]] && [[ ! -z ${Script} ]]
   then
     ScriptName=$(basename $0)
@@ -26,8 +26,8 @@ fct_help(){
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-c" "display the CLUSTER CONTEXT" ""
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-e" "display the ETCD status" ""
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-v" "display the EVENTS" ""
-  printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-m" "display the MCO status" ""
-  printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-n" "display the NODES status" "[Y]"
+  printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-m" "display the MCO status" "[Y]"
+  printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-n" "display the NODES status" ""
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-o" "display the OPERATORS status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-p" "display the PODS status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-s" "display the STATIC PODs status" "[Y]"
@@ -66,16 +66,16 @@ fct_help(){
 }
 
 fct_version() {
-  Script=$(which $0 2>/dev/null)
+  Script=$(which $0 2>${STD_ERR})
   if [[ "${Script}" != "bash" ]] && [[ ! -z ${Script} ]]
   then
-    VERSION=$(grep "@VERSION" ${Script} 2>/dev/null | grep -Ev "VERSION=" | cut -d'#' -f3)
+    VERSION=$(grep "@VERSION" ${Script} 2>${STD_ERR} | grep -Ev "VERSION=" | cut -d'#' -f3)
     VERSION=${VERSION:-" N/A"}
     RANDOM_CHECK=$(awk -v min=1 -v max=${MAX_RANDOM} 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
     if [[ ${RANDOM_CHECK} == 1 ]]
     then
       My_TTY=$(who am i | awk '{print $2}')
-      NEW_VERSION=$(curl -s --connect-timeout 2 --max-time 4 "${SOURCE_RAW_URL}" 2>/dev/null | grep "@VERSION" | grep -Ev "VERSION=" | cut -d'#' -f3)
+      NEW_VERSION=$(curl -Ns --connect-timeout 2 --max-time 4 "${SOURCE_RAW_URL}" 2>${STD_ERR} | grep "@VERSION" | grep -Ev "VERSION=" | cut -d'#' -f3)
       NEW_VERSION=${NEW_VERSION:-" N/A"}
       if [[ "${VERSION}" != "${NEW_VERSION}" ]] && [[ "${NEW_VERSION}" != " N/A" ]] && [[ "${VERSION}" != " N/A" ]]
       then
@@ -210,6 +210,8 @@ whitetext="\x1B[37m"
 resetcolor="\x1B[0m"
 # Max random number to check for update
 MAX_RANDOM=10
+# Set a default STD_ERR, which can be replaced for debugging to "/dev/stderr"
+STD_ERR="${STD_ERR:-/dev/null}"
 
 ##### Main
 if [[ $# != 0 ]]
@@ -235,18 +237,22 @@ then
         ;;
       m)
         MCO=true
+        HAS_DETAILS=true
         ;;
       n)
         NODES=true
         ;;
       o)
         OPERATORS=true
+        HAS_DETAILS=true
         ;;
       p)
         PODS=true
+        HAS_DETAILS=true
         ;;
       s)
         STATICPOD=true
+        HAS_DETAILS=true
         ;;
       d)
         DETAILS=true
@@ -277,7 +283,10 @@ then
   echo "The '-d' option should only be use with one or multiple filters"
   fct_help
 fi
-
+if [[ -z ${HAS_DETAILS} ]] && [[ ! -z ${DETAILS} ]]
+then
+  echo -e "${cyantext}[Info] The parameters used has no detailled oputput. The '-d' option will be ignored${resetcolor}"
+fi
 ##### Main Variables
 # OC command to use - Default: omc
 OC=${OC:-${DEFAULT_OC}}
@@ -288,13 +297,13 @@ POD_TRUNK=${POD_TRUNK:-${DEFAULT_TRUNK}}
 # Minimal restart count for PODs
 MIN_RESTART=${MIN_RESTART:-${DEFAULT_MIN_RESTART}}
 
-if [[ ! -f $(which ${OC} 2>/dev/null) ]]
+if [[ ! -f $(which ${OC} 2>${STD_ERR}) ]]
 then
   echo -e "${OC}: command not found!\nPlease check your PATH, or set the variable OC with the right value"
   exit 2
 fi
 
-${OC} project default >/dev/null 2>&1
+${OC} project default >${STD_ERR} 2>&1
 if [[ ! -z ${CONTEXT} ]]
 then
   fct_header "CLUSTER CONTEXT"
@@ -347,7 +356,7 @@ then
     done
   fi
   fct_title "CSV"
-  echo -e "Name | Display Name | Version | Phase\n$(${OC} get csv -A -o json | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>/dev/null | sort -u)" | column -t -s"|"
+  echo -e "Name | Display Name | Version | Phase\n$(${OC} get csv -A -o json | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|"
 fi
 
 if [[ ! -z ${MCO} ]]
@@ -452,11 +461,11 @@ then
     #### Replaced to ensure the live and offline displays are similars.
     #fct_title "firing Alerts"
     #${OC} alerts rules -s firing | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/ [5-9]  /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{2,5\}  /${redtext}&${resetcolor}/"
-    RULES=$(${OC} alerts rules -o json 2>/dev/null)
+    RULES=$(${OC} alerts rules -o json 2>${STD_ERR})
   else
-    TOKEN=$(oc get secret -n openshift-monitoring -o json | jq -r '.items[] | select((.metadata.name | test("prometheus-k8s-token")) and (.metadata.annotations."kubernetes.io/created-by" != null)) | .data.token' | base64 -d)
-    PROMETHEUS_URL=$(oc get route -n openshift-monitoring prometheus-k8s -o jsonpath="{.status.ingress[0].host}")
-    RULES=$(curl -sk -H "Authorization: Bearer $TOKEN" https://$PROMETHEUS_URL/api/v1/rules 2>/dev/null | jq -r --sort-keys '{ "data": [ .data.groups[].rules[] ] }')
+    TOKEN=$(oc get secret -n openshift-monitoring -o json 2>${STD_ERR}| jq -r '.items[] | select((.metadata.name | test("prometheus-k8s-token")) and (.metadata.annotations."kubernetes.io/created-by" != null)) | .data.token' | base64 -d)
+    PROMETHEUS_URL=$(oc get route -n openshift-monitoring prometheus-k8s -o jsonpath="{.status.ingress[0].host}" 2>${STD_ERR})
+    RULES=$(curl -sNk -H "Authorization: Bearer $TOKEN" https://$PROMETHEUS_URL/api/v1/rules 2>${STD_ERR} | jq -r --sort-keys '{ "data": [ .data.groups[].rules[] ] }')
   fi
   if [[ ! -z "${RULES}" ]]
   then
@@ -465,7 +474,7 @@ then
     fct_title "Firing Alerts rules details"
     echo ${RULES} | jq "\"ALERTNAME|LAST ACTIVE|NAMESPACE|WORKLOAD,LABEL,ENDPOINT,JOB,SERVICE OR NODE|SEVERITY|DESCRIPTION|\",(.data[] | select(.state == \"firing\") | .alerts | sort_by(.activeAt) | .[] | \"\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node else .labels.service end)|\(.labels.severity)|\(if (.annotations.description != null) then .annotations.description[0:${ALERT_TRUNK}] else .annotations.message[0:${ALERT_TRUNK}] end)\")" | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' | sed -e "s/ warning /${yellowtext}&${resetcolor}/" -e "s/ info /${greentext}&${resetcolor}/" -e "s/ critical /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/"
   else
-    ERR_MSG="Unable to retrieve and display the Alerts"
+    ERR_MSG="Failed to retrieve and display the Alerts"
     fct_title "firing Alerts"
     echo -e "${purpletext}${ERR_MSG}${resetcolor}"
     fct_title "Firing Alerts rules details"

@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.5
+
+### Minor updates - 1.2.5
+
+- None
+
+### Release updates - 1.2.5
+
+- Enforce cacheless curl commands
+- Display Info message when the '-d' option is used in combination with option not having details.
+- use a Variable 'STD_ERR' to redirect error message to '/dev/null' by default.
+  This Variable can be overwritten with '/dev/stderr' to help debugging.
+
+--------
+
 ## Version 1.2.4
 
 ### Minor updates - 1.2.4
