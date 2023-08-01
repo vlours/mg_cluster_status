@@ -12,6 +12,27 @@
 
 --------
 
+## Version 1.2.5
+
+### Minor updates - 1.2.5
+
+- None
+
+### Release updates - 1.2.5
+
+- Enforce cacheless curl commands
+- Display Info message when the '-d' option is used in combination with option not having details.
+- use a Variable 'STD_ERR' to redirect error message to '/dev/null' by default.
+  This Variable can be overwritten with '/dev/stderr' to help debugging.
+- Adding colors to the static PODS status.
+- Updating the POD restart detailled ouput
+  as the number of POD restart is equal to the sum of the restartCount from the containers running inside the POD.
+- Reduce the error message outputs when the operators details are missing.
+- Implementing an "ALL" variable to allow new options to be included by default.
+- Creating separation between options
+
+--------
+
 ## Version 1.2.4
 
 ### Minor updates - 1.2.4
