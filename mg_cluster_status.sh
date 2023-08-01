@@ -178,7 +178,8 @@ fct_restart_container_details() {
     namespace=$(echo ${POD_details} | cut -d'/' -f1)
     pod_name=$(echo ${POD_details} | cut -d'/' -f2)
     echo "${ALL_PODS}" | grep -E "^${namespace} *${pod_name}" | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
-    CONTAINER_DETAILS=$(${OC} get pod -n ${namespace} ${pod_name} -o json | jq -r ".status.containerStatuses[] | select(.restartCount >  ${MIN_RESTART}) | \"\(.name)+\(.state | to_entries[] | .key)+\(.restartCount)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.startedAt) else (.state | to_entries[] | .value.startedAt) end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.finishedAt) else null end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.exitCode) else (.state | to_entries[] | .value.exitCode) end)+\(if (.state | to_entries[] | .value.reason == \"CrashLoopBackOff\" ) then (.state | to_entries[] | .value.reason) elif (.lastState != {}) then (.lastState | to_entries[] | .value.reason) else (.state | to_entries[] | .value.reason) end)\"")
+    ### The POD restartCount is now a Total of all containers restartCount, updating the query to display all containers with "restartCount > 0" sorted by highest numbers
+    CONTAINER_DETAILS=$(${OC} get pod -n ${namespace} ${pod_name} -o json | jq -r ".status.containerStatuses | sort_by(-.restartCount,.name) | .[] | select(.restartCount >  0) | \"\(.name)+\(.state | to_entries[] | .key)+\(.restartCount)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.startedAt) else (.state | to_entries[] | .value.startedAt) end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.finishedAt) else null end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.exitCode) else (.state | to_entries[] | .value.exitCode) end)+\(if (.state | to_entries[] | .value.reason == \"CrashLoopBackOff\" ) then (.state | to_entries[] | .value.reason) elif (.lastState != {}) then (.lastState | to_entries[] | .value.reason) else (.state | to_entries[] | .value.reason) end)\"")
     for line in "Container Name+state+restartCount+lastStartedAt+lastEndedAt+exitCode+reason" "--------------+-----+------------+-------------+------------+--------+--------" ${CONTAINER_DETAILS}
     do
       printf "|-> %-32s %-12s %-15s %-22s %-22s %-10s %-20s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7)" | sed -e "s/|-> \([-a-z ]*\)\([0-9]\{3,10\}\)/|-> \1${redtext}\2${resetcolor}/" -e "s/|-> \([-a-z ]*\)\([0-9]\{1,2\}\)/|-> \1${yellowtext}\2${resetcolor}/"
@@ -267,25 +268,17 @@ then
     esac
   done
 else
-  ALERTS=true
-  CONTEXT=true
-  ETCD=true
-  EVENTS=true
-  MCO=true
-  NODES=true
-  OPERATORS=true
-  PODS=true
-  STATICPOD=true
+  ALL=true
 fi
 
-if [[ $# == 1 ]] && [[ ! -z ${DETAILS} ]]
+if [[ $* == "-d" ]]
 then
   echo "The '-d' option should only be use with one or multiple filters"
   fct_help
 fi
 if [[ -z ${HAS_DETAILS} ]] && [[ ! -z ${DETAILS} ]]
 then
-  echo -e "${cyantext}[Info] The parameters used has no detailled oputput. The '-d' option will be ignored${resetcolor}"
+  echo -e "${cyantext}[Info] The parameters used has no detailled output. The '-d' option will be ignored${resetcolor}"
 fi
 ##### Main Variables
 # OC command to use - Default: omc
@@ -304,7 +297,9 @@ then
 fi
 
 ${OC} project default >${STD_ERR} 2>&1
-if [[ ! -z ${CONTEXT} ]]
+
+########### CONTEXT ###########
+if [[ ! -z ${CONTEXT} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "CLUSTER CONTEXT"
   fct_title "Clusterversion"
@@ -319,7 +314,8 @@ then
   ${OC} get proxy cluster -o json | jq -r .spec
 fi
 
-if [[ ! -z ${NODES} ]]
+########### NODES ###########
+if [[ ! -z ${NODES} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "NODE STATUS"
   fct_title "Nodes"
@@ -334,19 +330,20 @@ then
   ${OC} get csr | sed -e "s/Pending/${redtext}&${resetcolor}/"
 fi
 
-if [[ ! -z ${OPERATORS} ]]
+########### OPERATORS ###########
+if [[ ! -z ${OPERATORS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "OPERATOR STATUS"
   fct_title "Unhealthy Cluster Operators"
-  ${OC} get co -o json | jq -r '"|NAME|VERSION|AVAILABLE|PROGRESSING|DEGRADED|LASTTRANSTION|MESSAGE",(.items[] | "|\(.metadata.name)|\(.status.versions[] | select(.name == "operator") | .version)|\(.status.conditions[] |select(.type == "Available") | .status)|\(.status.conditions[] |select(.type == "Progressing") | .status)|\(.status.conditions[] |select(.type == "Degraded") | .status)|\(if ((.status.conditions[] | select(.type == "Degraded") | .message) != null and (.status.conditions[] |select(.type == "Degraded") | .status) == "True") then "\(.status.conditions[] | select(.type == "Degraded") | .lastTransitionTime + "|" + .message)"  elif ((.status.conditions[] |select(.type == "Progressing") | .message) != null and (.status.conditions[] |select(.type == "Progressing") | .status) == "True") then "\(.status.conditions[] |select(.type == "Progressing") | .lastTransitionTime + "|" + .message)" elif ((.status.conditions[] |select(.type == "Available") | .message) != null and (.status.conditions[] |select(.type == "Available") | .status) == "True") then "\(.status.conditions[] |select(.type == "Available") | .lastTransitionTime + "|" + .message)" else "" end)")' | grep -v "True|False|False" | grep "^|" | awk -F'|' -v trunk=${CONDITION_TRUNK} '{printf "%s|%s|",$2,$3; if($4 == "AVAILABLE"){printf "%s|",$4} else if($4 == "True"){printf "G%s|",$4}else{printf "R%s|",$4}; if($5 == "PROGRESSING"){printf "%s|",$5} else if($5 == "True"){printf "Y%s|",$5}else{printf "G%s|",$5}; if($6 == "DEGRADED"){printf "%s|",$6} else if($6 == "True"){printf "R%s|",$6}else{printf "G%s|",$6}; desc=substr($8,1,trunk); printf "%s|%s|\n",$7,desc}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
-  CLUSTER_VERSION=$(${OC} get clusterversion version -o json | jq -r .status.desired.version)
-  CO_MISS_VERSION_OUTPUT=$(${OC} get co | grep -v ${CLUSTER_VERSION})
+  ${OC} get co -o json 2>${STD_ERR} | jq -r '"|NAME|VERSION|AVAILABLE|PROGRESSING|DEGRADED|LASTTRANSTION|MESSAGE",(.items[] | "|\(.metadata.name)|\(.status.versions[] | select(.name == "operator") | .version)|\(.status.conditions[] |select(.type == "Available") | .status)|\(.status.conditions[] |select(.type == "Progressing") | .status)|\(.status.conditions[] |select(.type == "Degraded") | .status)|\(if ((.status.conditions[] | select(.type == "Degraded") | .message) != null and (.status.conditions[] |select(.type == "Degraded") | .status) == "True") then "\(.status.conditions[] | select(.type == "Degraded") | .lastTransitionTime + "|" + .message)"  elif ((.status.conditions[] |select(.type == "Progressing") | .message) != null and (.status.conditions[] |select(.type == "Progressing") | .status) == "True") then "\(.status.conditions[] |select(.type == "Progressing") | .lastTransitionTime + "|" + .message)" elif ((.status.conditions[] |select(.type == "Available") | .message) != null and (.status.conditions[] |select(.type == "Available") | .status) == "True") then "\(.status.conditions[] |select(.type == "Available") | .lastTransitionTime + "|" + .message)" else "" end)")' 2>${STD_ERR} | grep -v "True|False|False" | grep "^|" | awk -F'|' -v trunk=${CONDITION_TRUNK} '{printf "%s|%s|",$2,$3; if($4 == "AVAILABLE"){printf "%s|",$4} else if($4 == "True"){printf "G%s|",$4}else{printf "R%s|",$4}; if($5 == "PROGRESSING"){printf "%s|",$5} else if($5 == "True"){printf "Y%s|",$5}else{printf "G%s|",$5}; if($6 == "DEGRADED"){printf "%s|",$6} else if($6 == "True"){printf "R%s|",$6}else{printf "G%s|",$6}; desc=substr($8,1,trunk); printf "%s|%s|\n",$7,desc}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
+  CLUSTER_VERSION=$(${OC} get clusterversion version -o json | jq -r .status.desired.version 2>${STD_ERR})
+  CO_MISS_VERSION_OUTPUT=$(${OC} get co | grep -Ev "${CLUSTER_VERSION:-"NAME"}|^resource")
   if [[ ! -z $(echo "${CO_MISS_VERSION_OUTPUT}" | grep -Ev "^NAME") ]]
   then
     fct_title "Not Updated Cluster Operators"
-    echo "${CO_MISS_VERSION_OUTPUT}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; if($5 == "DEGRADED"){printf "%s|",$5} else if($5 == "True"){printf "R%s|",$5}else{printf "G%s|",$5}; printf "%s|\n",$6}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g" -e "s/4.[0-9]\{1,2\}.[0-9]\{1,2\}/${redtext}&${resetcolor}/" -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/"
+    echo "${CO_MISS_VERSION_OUTPUT}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; if($5 == "DEGRADED"){printf "%s|",$5} else if($5 == "True"){printf "R%s|",$5}else{printf "G%s|",$5}; printf "%s|\n",$6}' 2>${STD_ERR} | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g" -e "s/4.[0-9]\{1,2\}.[0-9]\{1,2\}/${redtext}&${resetcolor}/" -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/"
   fi
-  UNHEALTHY_OPERATORS=$(${OC} get co -o json | jq -r '.items[] | select(.status.conditions[] | ((.type == "Available") and (.status == "False")) or ((.type == "Progressing") and (.status == "True")) or ((.type == "Degraded") and (.status == "True"))) | .metadata.name' | sort -u)
+  UNHEALTHY_OPERATORS=$(${OC} get co -o json | jq -r '.items[] | select(.status.conditions[] | ((.type == "Available") and (.status == "False")) or ((.type == "Progressing") and (.status == "True")) or ((.type == "Degraded") and (.status == "True"))) | .metadata.name' 2>${STD_ERR} | sort -u)
   if [[ ! -z ${DETAILS} ]] && [[ ! -z ${UNHEALTHY_OPERATORS} ]]
   then
     fct_title_details "Unhealthy Cluster Operators - Details"
@@ -359,7 +356,8 @@ then
   echo -e "Name | Display Name | Version | Phase\n$(${OC} get csv -A -o json | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|"
 fi
 
-if [[ ! -z ${MCO} ]]
+########### MCO ###########
+if [[ ! -z ${MCO} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "MACHINE CONFIG OPERATOR STATUS"
   fct_title "MCP status"
@@ -378,14 +376,16 @@ then
   ${OC} get nodes -ojson | jq -r '"Node Name | Current MC | Desired MC | MC State",(.items| sort_by(.metadata.name,.metadata.annotations."machineconfiguration.openshift.io/desiredConfig",.metadata.annotations."machineconfiguration.openshift.io/currentConfig") | .[]  | "\(if (.metadata.annotations."machineconfiguration.openshift.io/currentConfig" == .metadata.annotations."machineconfiguration.openshift.io/desiredConfig") then .metadata.name else "RED"+.metadata.name end) | \(if (.metadata.annotations."machineconfiguration.openshift.io/currentConfig" == .metadata.annotations."machineconfiguration.openshift.io/desiredConfig") then "GREEN" + .metadata.annotations."machineconfiguration.openshift.io/currentConfig" else "RED" + .metadata.annotations."machineconfiguration.openshift.io/currentConfig" end) | \(.metadata.annotations."machineconfiguration.openshift.io/desiredConfig") | \(.metadata.annotations."machineconfiguration.openshift.io/state")")' | column -t -s'|' | sed -e "s/ Degraded$/${redtext}&${resetcolor}/" -e "s/ Done$/${greentext}&${resetcolor}/" -e "s/RED\([0-9a-z\.\-]*\)/${redtext}\1   ${resetcolor}/g" -e "s/GREEN\([0-9a-z\.\-]*\)/${greentext}\1     ${resetcolor}/g"
 fi
 
-if [[ ! -z ${EVENTS} ]]
+########### EVENTS ###########
+if [[ ! -z ${EVENTS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "DEFAULT EVENTS"
   fct_title "Events in default namespace"
   ${OC} get events -n default -o json | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message)")' | column -t -s'|'
 fi
 
-if [[ ! -z ${PODS} ]]
+########### PODS ###########
+if [[ ! -z ${PODS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "POD STATUS"
   fct_title "Unsuccessful PODs"
@@ -410,14 +410,15 @@ then
   fi
 fi
 
-if [[ ! -z ${STATICPOD} ]]
+########### STATICPOD ###########
+if [[ ! -z ${STATICPOD} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "STATIC PODs"
   fct_title "Revision Status"
   for static in etcd kubeapiserver kubecontrollermanager kubescheduler
   do
     printf "${static}|"
-    ${OC} get ${static} cluster -o json | jq -r '.status.conditions[] | select(((.type == "NodeInstallerProgressing") or (.type == "APIServerDeploymentProgressing")) and (.message != null)) | ": \(.message)"'
+    ${OC} get ${static} cluster -o json | jq -r '.status.conditions[] | select(((.type == "NodeInstallerProgressing") or (.type == "APIServerDeploymentProgressing")) and (.message != null)) | ": \(.message)"' | sed -e "s/[0-9] nodes are at revision [0-9]\{1,3\}/${greentext}&${resetcolor}/" -e "s/; \([0-9] nodes are at revision [0-9]\{1,3\}\)/; ${yellowtext}\1${resetcolor}/" -e "s/; \(0 nodes have achieved new revision [0-9]\{1,3\}\)/; ${redtext}\1${resetcolor}/"
   done | column -t -s'|'
   if [[ ! -z ${DETAILS} ]]
   then
@@ -434,7 +435,8 @@ then
   fi
 fi
 
-if [[ ! -z ${ETCD} ]]
+########### ETCD ###########
+if [[ ! -z ${ETCD} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "ETCD STATUS"
   fct_title "ETCD Health"
@@ -453,7 +455,8 @@ then
   fi
 fi
 
-if [[ ! -z ${ALERTS} ]]
+########### ALERTS ###########
+if [[ ! -z ${ALERTS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "ALERTS STATUS"
   if [[ "${OC}" == "omg" ]] || [[ "${OC}" == "omc" ]]
