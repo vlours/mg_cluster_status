@@ -71,8 +71,8 @@ usage: mg_cluster_status.sh [-acevmnops] [-d] [-h]
 |      -c | display the CLUSTER CONTEXT                                     |           |
 |      -e | display the ETCD status                                         |           |
 |      -v | display the EVENTS                                              |           |
-|      -m | display the MCO status                                          |           |
-|      -n | display the NODES status                                        | [Y]       |
+|      -m | display the MCO status                                          | [Y]       |
+|      -n | display the NODES status                                        |           |
 |      -o | display the OPERATORS status                                    | [Y]       |
 |      -p | display the PODS status                                         | [Y]       |
 |      -s | display the STATIC PODs status                                  | [Y]       |
@@ -84,15 +84,16 @@ usage: mg_cluster_status.sh [-acevmnops] [-d] [-h]
 |---------------------------------------------------------------------------------------|
 
 Customizable variables before running the script (Optional):
-|---------------------------------------------------------------------------------------------------------------------------------------------|
-|Options                          | Description                                                                      | [Default]  | [Current] |
-|---------------------------------|----------------------------------------------------------------------------------|------------|-----------|
-|export OC=[omc|omg|oc]           | #Change the must-gather tool (use 'oc' to run the script against live cluster)   | [omc]      |           |
-|export ALERT_TRUNK=<interger>    | #Change the length of the Alert Descriptions                                     | [100]      |           |
-|export CONDITION_TRUNK=<interger | #Change the length of the Operator Message in 'oc get co'                        | [220]      |           |
-|export POD_TRUNK=<interger       | #Change the length of the POD Message in 'oc get co'                             | [100]      |           |
-|export MIN_RESTART=<integer>     | #Change the minimal number of restart when checking the POD restarts             | [10]       |           |
-|---------------------------------------------------------------------------------------------------------------------------------------------|
+|-----------------------------------------------------------------------------------------------------------------------------------------------|
+|Options                            | Description                                                                      | [Default]  | [Current] |
+|-----------------------------------|----------------------------------------------------------------------------------|------------|-----------|
+|export OC=[omc|omg|oc]             | #Change the must-gather tool (use 'oc' to run the script against live cluster)   | [omc]      |           |
+|export ALERT_TRUNK=<interger>      | #Change the length of the Alert Descriptions                                     | [100]      |           |
+|export CONDITION_TRUNK=<interger   | #Change the length of the Operator Message in 'oc get co'                        | [220]      |           |
+|export POD_TRUNK=<interger         | #Change the length of the POD Message in 'oc get co'                             | [100]      |           |
+|export MIN_RESTART=<integer>       | #Change the minimal number of restart when checking the POD restarts             | [10]       |           |
+|export DEFAULT_TAIL_LOG=<integer>  | #Change the number of lines displayed from logs ('tail')                         | [15]       |           |
+|-----------------------------------------------------------------------------------------------------------------------------------------------|
 
 Current Version:  1.X.X - The script is up-to-date. Thanks
 ```

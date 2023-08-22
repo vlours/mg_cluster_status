@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.6
+
+### Minor updates - 1.2.6
+
+- None
+
+### Release updates - 1.2.6
+
+- Displaying the log of nodes in Degraded state in the MCO section with detailled output.
+- Including new customizable variable "DEFAULT_TAIL_LOG".
+- Updating the README.md file to include the new variable.
+- Adding autoformating for the pod restart detailled view (based on the longest container name)
+
+--------
+
 ## Version 1.2.5
 
 ### Minor updates - 1.2.5
