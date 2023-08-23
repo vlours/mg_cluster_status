@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.6.1
+# @VERSION     # 1.2.7
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -126,7 +126,7 @@ fct_title_details() {
 }
 
 fct_unsuccessful_pod_details() {
-  ALL_PODS_JSON=$(${OC} get pod -A -o json)
+  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json)}
   Pending_PODs=$(echo "${ALL_PODS_JSON}" | jq -r ".items[] | select((.metadata.deletionTimestamp == null) and (.status.phase == \"Pending\")) | .metadata.namespace + \"/\" + .metadata.name + \"|\" + .metadata.creationTimestamp + \"|R-\" + .status.phase + \"-R|\" + (if ((.status.conditions[] | select(.type == \"PodScheduled\") | .message) != null) then (.status.conditions[] | select(.type == \"PodScheduled\") | .message[0:${POD_TRUNK}]) elif ((.status.conditions[] | select(.type == \"ContainersReady\") | .message) != null) then (.status.conditions[] | select(.type == \"ContainersReady\") | .message[0:${POD_TRUNK}]) else \"null\" end)")
   if [[ ! -z ${Pending_PODs} ]]
   then
@@ -148,7 +148,7 @@ fct_unsuccessful_pod_details() {
 }
 
 fct_unsuccessful_container_details() {
-  ALL_PODS=$(${OC} get pod -A)
+  ALL_PODS=${ALL_PODS:-$(${OC} get pod -A)}
   UNCOMPLETE_POD_LIST=$(echo "${ALL_PODS}" | grep -Ev "^NAME|Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | awk '{print $1"/"$2}')
   echo "${ALL_PODS}" | grep -E "^NAME"
   for POD_details in ${UNCOMPLETE_POD_LIST}
@@ -171,7 +171,7 @@ fct_unsuccessful_container_details() {
 }
 
 fct_restart_container_details() {
-  ALL_PODS=$(${OC} get pod -A)
+  ALL_PODS=${ALL_PODS:-$(${OC} get pod -A)}
   RESTART_POD_LIST=$(echo "${ALL_PODS}" | awk -v min_restart=${MIN_RESTART} '($5 > min_restart){print $1"/"$2}' | grep -Ev "^NAME")
   echo "${ALL_PODS}" | grep -E "^NAME"
   for POD_details in ${RESTART_POD_LIST}
@@ -413,8 +413,14 @@ fi
 if [[ ! -z ${PODS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "POD STATUS"
+  ALL_PODS_WIDE=$(${OC} get pod -A -o wide)
+  if [[ ! -z ${DETAILS} ]]
+  then
+    ALL_PODS=$(${OC} get pod -A)
+    ALL_PODS_JSON=$(${OC} get pod -A -o json)
+  fi
   fct_title "Unsuccessful PODs"
-  ${OC} get pod -A -o wide | grep -Ev "Running|Completed|Succeeded" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending/${yellowtext}&${resetcolor}/" -e "s/ContainerCreating/${yellowtext}&${resetcolor}/" -e "s/ImagePullBackOff/${yellowtext}&${resetcolor}/" -e "s/PodInitializing/${yellowtext}&${resetcolor}/" -e "s/ErrImagePull/${yellowtext}&${resetcolor}/" -e "s/ Error/${redtext}&${resetcolor}/" -e "s/CrashLoopBackOff/${redtext}&${resetcolor}/" -e "s/Failed/${redtext}&${resetcolor}/" -e "s/CreateContainerError/${redtext}&${resetcolor}/" -e "s/CreateContainerConfigError/${redtext}&${resetcolor}/"
+  echo "${ALL_PODS_WIDE}" | grep -Ev "Running|Completed|Succeeded" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending/${yellowtext}&${resetcolor}/" -e "s/ContainerCreating/${yellowtext}&${resetcolor}/" -e "s/ImagePullBackOff/${yellowtext}&${resetcolor}/" -e "s/PodInitializing/${yellowtext}&${resetcolor}/" -e "s/ErrImagePull/${yellowtext}&${resetcolor}/" -e "s/ Error/${redtext}&${resetcolor}/" -e "s/CrashLoopBackOff/${redtext}&${resetcolor}/" -e "s/Failed/${redtext}&${resetcolor}/" -e "s/CreateContainerError/${redtext}&${resetcolor}/" -e "s/CreateContainerConfigError/${redtext}&${resetcolor}/"
   if [[ ! -z ${DETAILS} ]]
   then
     fct_unsuccessful_pod_details
@@ -424,14 +430,14 @@ then
   then
     fct_unsuccessful_container_details
   else
-    ${OC} get pod -A -o wide | grep -Ev "Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
+    echo "${ALL_PODS_WIDE}" | grep -Ev "Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
   fi
   fct_title "High number POD restart (>${MIN_RESTART})"
   if [[ ! -z ${DETAILS} ]]
   then
     fct_restart_container_details
   else
-    ${OC} get pod -A -o wide | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
+    echo "${ALL_PODS_WIDE}" | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
   fi
 fi
 

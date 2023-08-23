@@ -12,6 +12,18 @@
 
 --------
 
+## Version 1.2.7
+
+### Minor updates - 1.2.7
+
+- None
+
+### Release updates - 1.2.7
+
+- Caching the 'oc get pods' outputs in variable to improve the performance if the number of PODs is large.
+
+--------
+
 ## Version 1.2.6.1
 
 ### Minor updates - 1.2.6.1
