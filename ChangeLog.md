@@ -12,6 +12,18 @@
 
 --------
 
+## Version 1.2.6.1
+
+### Minor updates - 1.2.6.1
+
+- None
+
+### Release updates - 1.2.6.1
+
+- quick fix for a test condition in the function "fct_restart_container_details"
+
+--------
+
 ## Version 1.2.6
 
 ### Minor updates - 1.2.6
