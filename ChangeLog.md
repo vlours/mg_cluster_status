@@ -20,7 +20,12 @@
 
 ### Release updates - 1.2.7
 
-- Caching the 'oc get pods' outputs in variable to improve the performance if the number of PODs is large.
+- (POD) Caching the 'oc get pods' outputs in variable to improve the performance if the number of PODs is large.
+- (HELP) Fixing incorrect variable name in the HELP output.
+- (MCO) Displaying the machine-config-controller log when at least one MCP is in Updating state.
+- (MCO) Adding colours when displaying the last 10 MCs, to help identify the current and previous version for each MCP.
+- (NODE) Caching the 'oc get nodes' outputs in variable to improve the performance.
+- (NODE) Adding detailled view for the NODEs, including the capacity vs allocatable values, and pressure conditions.
 
 --------
 

@@ -72,7 +72,7 @@ usage: mg_cluster_status.sh [-acevmnops] [-d] [-h]
 |      -e | display the ETCD status                                         |           |
 |      -v | display the EVENTS                                              |           |
 |      -m | display the MCO status                                          | [Y]       |
-|      -n | display the NODES status                                        |           |
+|      -n | display the NODES status                                        | [Y]       |
 |      -o | display the OPERATORS status                                    | [Y]       |
 |      -p | display the PODS status                                         | [Y]       |
 |      -s | display the STATIC PODs status                                  | [Y]       |
@@ -92,7 +92,7 @@ Customizable variables before running the script (Optional):
 |export CONDITION_TRUNK=<interger   | #Change the length of the Operator Message in 'oc get co'                        | [220]      |           |
 |export POD_TRUNK=<interger         | #Change the length of the POD Message in 'oc get co'                             | [100]      |           |
 |export MIN_RESTART=<integer>       | #Change the minimal number of restart when checking the POD restarts             | [10]       |           |
-|export DEFAULT_TAIL_LOG=<integer>  | #Change the number of lines displayed from logs ('tail')                         | [15]       |           |
+|export TAIL_LOG=<integer>          | #Change the number of lines displayed from logs ('tail')                         | [15]       |           |
 |-----------------------------------------------------------------------------------------------------------------------------------------------|
 
 Current Version:  1.X.X - The script is up-to-date. Thanks
