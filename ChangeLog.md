@@ -25,7 +25,7 @@
 - (MCO) Displaying the machine-config-controller log when at least one MCP is in Updating state.
 - (MCO) Adding colours when displaying the last 10 MCs, to help identify the current and previous version for each MCP.
 - (NODE) Caching the 'oc get nodes' outputs in variable to improve the performance.
-- (NODE) Adding detailled view for the NODEs, including the capacity vs allocatable values, and pressure conditions.
+- (NODE) Adding detailled view for the NODEs, including the capacity vs allocatable values, kubeletconfig/systemreserved (if defined) and pressure conditions.
 
 --------
 
