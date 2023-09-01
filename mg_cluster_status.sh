@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.6.1
+# @VERSION     # 1.2.7
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -27,7 +27,7 @@ fct_help(){
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-e" "display the ETCD status" ""
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-v" "display the EVENTS" ""
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-m" "display the MCO status" "[Y]"
-  printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-n" "display the NODES status" ""
+  printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-n" "display the NODES status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-o" "display the OPERATORS status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-p" "display the PODS status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-s" "display the STATIC PODs status" "[Y]"
@@ -59,7 +59,7 @@ fct_help(){
   printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export CONDITION_TRUNK=<interger" "#Change the length of the Operator Message in 'oc get co'" "[${DEFAULT_CONDITION_TRUNK}]" "$(if [[ ! -z ${CONDITION_TRUNK} ]]; then echo "[${CONDITION_TRUNK}]"; fi)"
   printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export POD_TRUNK=<interger" "#Change the length of the POD Message in 'oc get co'" "[${DEFAULT_TRUNK}]" "$(if [[ ! -z ${POD_TRUNK} ]]; then echo "[${POD_TRUNK}]"; fi)"
   printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export MIN_RESTART=<integer>" "#Change the minimal number of restart when checking the POD restarts" "[${DEFAULT_MIN_RESTART}]" "$(if [[ ! -z ${MIN_RESTART} ]]; then echo "[${MIN_RESTART}]"; fi)"
-  printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export DEFAULT_TAIL_LOG=<integer>" "#Change the number of lines displayed from logs ('tail')" "[${DEFAULT_TAIL_LOG}]" "$(if [[ ! -z ${TAIL_LOG} ]]; then echo "[${TAIL_LOG}]"; fi)"
+  printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export TAIL_LOG=<integer>" "#Change the number of lines displayed from logs ('tail')" "[${DEFAULT_TAIL_LOG}]" "$(if [[ ! -z ${TAIL_LOG} ]]; then echo "[${TAIL_LOG}]"; fi)"
   printf "|%-${EXPORT_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
   MAX_RANDOM=1
   fct_version
@@ -126,7 +126,7 @@ fct_title_details() {
 }
 
 fct_unsuccessful_pod_details() {
-  ALL_PODS_JSON=$(${OC} get pod -A -o json)
+  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json)}
   Pending_PODs=$(echo "${ALL_PODS_JSON}" | jq -r ".items[] | select((.metadata.deletionTimestamp == null) and (.status.phase == \"Pending\")) | .metadata.namespace + \"/\" + .metadata.name + \"|\" + .metadata.creationTimestamp + \"|R-\" + .status.phase + \"-R|\" + (if ((.status.conditions[] | select(.type == \"PodScheduled\") | .message) != null) then (.status.conditions[] | select(.type == \"PodScheduled\") | .message[0:${POD_TRUNK}]) elif ((.status.conditions[] | select(.type == \"ContainersReady\") | .message) != null) then (.status.conditions[] | select(.type == \"ContainersReady\") | .message[0:${POD_TRUNK}]) else \"null\" end)")
   if [[ ! -z ${Pending_PODs} ]]
   then
@@ -148,7 +148,7 @@ fct_unsuccessful_pod_details() {
 }
 
 fct_unsuccessful_container_details() {
-  ALL_PODS=$(${OC} get pod -A)
+  ALL_PODS=${ALL_PODS:-$(${OC} get pod -A)}
   UNCOMPLETE_POD_LIST=$(echo "${ALL_PODS}" | grep -Ev "^NAME|Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | awk '{print $1"/"$2}')
   echo "${ALL_PODS}" | grep -E "^NAME"
   for POD_details in ${UNCOMPLETE_POD_LIST}
@@ -171,7 +171,7 @@ fct_unsuccessful_container_details() {
 }
 
 fct_restart_container_details() {
-  ALL_PODS=$(${OC} get pod -A)
+  ALL_PODS=${ALL_PODS:-$(${OC} get pod -A)}
   RESTART_POD_LIST=$(echo "${ALL_PODS}" | awk -v min_restart=${MIN_RESTART} '($5 > min_restart){print $1"/"$2}' | grep -Ev "^NAME")
   echo "${ALL_PODS}" | grep -E "^NAME"
   for POD_details in ${RESTART_POD_LIST}
@@ -251,6 +251,7 @@ then
         ;;
       n)
         NODES=true
+        HAS_DETAILS=true
         ;;
       o)
         OPERATORS=true
@@ -330,11 +331,23 @@ then
   fct_header "NODE STATUS"
   fct_title "Nodes"
   ${OC} get nodes -o wide | sed -e "s/SchedulingDisabled/${yellowtext}&${resetcolor}/" -e "s/NotReady/${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
-   NOT_READY=$(${OC} get nodes -o json | jq -r '.items[] | select(.status.conditions[] | select((.type == "Ready") and (.status != "True"))) | "\(.metadata.name)|NotReady|\(.status.conditions[] | select(.type == "Ready") | .lastTransitionTime)"')
+  NODE_JSON=$(${OC} get nodes -o json)
+  NOT_READY=$(echo "${NODE_JSON}" | jq -r '.items[] | select(.status.conditions[] | select((.type == "Ready") and (.status != "True"))) | "\(.metadata.name)|NotReady|\(.status.conditions[] | select(.type == "Ready") | .lastTransitionTime)"')
   if [[ ! -z ${NOT_READY} ]]
   then
     fct_title "NotReady Nodes"
     echo -e "Name |Status|lastTransition\n${NOT_READY}" | column -t -s'|' | sed -e "s/^[-a-z0-9]*/${redtext}&${resetcolor}/" -e "s/[-:0-9A-Z]*$/${yellowtext}&${resetcolor}/"
+  fi
+  if [[ ! -z ${DETAILS} ]]
+  then
+    fct_title_details "Node details"
+    echo "${NODE_JSON}" | jq -r '"|CPU||Memory||ephemeral-storage|||||Conditions||||\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|hugepages-1Gi|hugepages-2Mi|MemoryPressure|DiskPressure|PIDPressure|Ready|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(.status.allocatable.memory)|\(.status.capacity."ephemeral-storage")|\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki|\(.status.capacity.pods)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(.status.conditions[]|select(.type == "MemoryPressure")|.status)|\(.status.conditions[]|select(.type == "DiskPressure")|.status)|\(.status.conditions[]|select(.type == "PIDPressure")|.status)|\(.status.conditions[]|select(.type == "Ready")|.status)|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed  -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
+    KUBELETCONFIG=$(${OC} get kubeletconfig -o json | grep -Ev "^$|^No resources" | jq -r 'if(.items != null) then .items[] else null end')
+    if [[ "${KUBELETCONFIG}" != "[]" ]] && [[ "${KUBELETCONFIG}" != "" ]]
+    then
+      fct_title_details "System Reserved"
+      echo "${KUBELETCONFIG}" | jq -r '"Name|autoSizingReserved|cpu|memory|ephemeral-resource|MCP Label(s)",(.[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.cpu != null) then .cpu else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.memory != null) then .memory else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end) else "-" end)|\(.spec.machineConfigPoolSelector.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ])")' | column -t -s'|'
+    fi
   fi
   fct_title "CSRs"
   ${OC} get csr | sed -e "s/Pending/${redtext}&${resetcolor}/"
@@ -375,11 +388,17 @@ then
   NODE_DEGRADED=$(${OC} get mcp -o json | jq -r ".items[] | select(.status.conditions[] | (.type == \"NodeDegraded\" and .status == \"True\")) | \"\(.metadata.name)|\(.status.conditions[] | select(.type == \"NodeDegraded\") | .lastTransitionTime)|R-\(.status.conditions[] | select(.type == \"NodeDegraded\") | .reason)-R|Y-\(.status.conditions[] | select(.type == \"NodeDegraded\") | .message[0:${CONDITION_TRUNK}])-Y\"")
   if [[ ! -z "${NODE_DEGRADED}" ]] && [[ ! -z ${DETAILS} ]]
   then
-    fct_title "Degraded nodes per MCP - details"
+    fct_title_details "Degraded nodes per MCP - details"
     echo -e "MCP Name|lastTransitionTime|reason|message\n${NODE_DEGRADED}" | column -t -s'|' | sed -e "s/R-\([0-9a-z \.\-]*\)-R/${redtext}\1    ${resetcolor}/" -e "s/Y-\(.*\)-Y$/${yellowtext}\1 ${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
   fi
+  PROCESSING_MCP=$(${OC} get mcp -o json | jq -r ".items[] | select(.status.conditions[] | (.type == \"Updated\" and .status == \"False\")) | .metadata.name")
+  if [[ ! -z "${PROCESSING_MCP}" ]] && [[ ! -z ${DETAILS} ]]
+  then
+    fct_title_details "Processing MCP - machine-config-controller log"
+    ${OC} logs -n openshift-machine-config-operator $(${OC} get pod -n openshift-machine-config-operator -l k8s-app=machine-config-controller -o name) -c machine-config-controller |  grep -Ev "template_controller.go" | tail -${TAIL_LOG} | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
+  fi
   fct_title "Latest MachineConfigs"
-  ${OC} get mc -o json | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10
+  ${OC} get mc -o json | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10 | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
   fct_title "MCP state & versions"
   ${OC} get mcp -o json | jq -r '"MCP Name | Current Rendered | Desired Rendered | Paused | maxUnavailable",(.items[] | "\(.metadata.name) | \(if (.spec.configuration.name != .status.configuration.name) then "RED"+.status.configuration.name else "GREEN"+.status.configuration.name end) | \(.spec.configuration.name) | \(if (.spec.paused != null) then .spec.paused else false end) | \(if (.spec.maxUnavailable != null) then .spec.maxUnavailable else 1 end )")' | column -t -s'|' | sed -e "s/ [1-9]\{1,5\}[0-9][%]*$/${yellowtext}&${resetcolor}/" -e "s/ true /${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/" -e "s/RED\([0-9a-z\-]*\)/${redtext}\1   ${resetcolor}/g" -e "s/GREEN\([0-9a-z\-]*\)/${greentext}\1     ${resetcolor}/g"
   fct_title "MCO by node"
@@ -413,8 +432,14 @@ fi
 if [[ ! -z ${PODS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "POD STATUS"
+  ALL_PODS_WIDE=$(${OC} get pod -A -o wide)
+  if [[ ! -z ${DETAILS} ]]
+  then
+    ALL_PODS=$(${OC} get pod -A)
+    ALL_PODS_JSON=$(${OC} get pod -A -o json)
+  fi
   fct_title "Unsuccessful PODs"
-  ${OC} get pod -A -o wide | grep -Ev "Running|Completed|Succeeded" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending/${yellowtext}&${resetcolor}/" -e "s/ContainerCreating/${yellowtext}&${resetcolor}/" -e "s/ImagePullBackOff/${yellowtext}&${resetcolor}/" -e "s/PodInitializing/${yellowtext}&${resetcolor}/" -e "s/ErrImagePull/${yellowtext}&${resetcolor}/" -e "s/ Error/${redtext}&${resetcolor}/" -e "s/CrashLoopBackOff/${redtext}&${resetcolor}/" -e "s/Failed/${redtext}&${resetcolor}/" -e "s/CreateContainerError/${redtext}&${resetcolor}/" -e "s/CreateContainerConfigError/${redtext}&${resetcolor}/"
+  echo "${ALL_PODS_WIDE}" | grep -Ev "Running|Completed|Succeeded" | sed -e "s/Terminating/${yellowtext}&${resetcolor}/" -e "s/Pending/${yellowtext}&${resetcolor}/" -e "s/ContainerCreating/${yellowtext}&${resetcolor}/" -e "s/ImagePullBackOff/${yellowtext}&${resetcolor}/" -e "s/PodInitializing/${yellowtext}&${resetcolor}/" -e "s/ErrImagePull/${yellowtext}&${resetcolor}/" -e "s/ Error/${redtext}&${resetcolor}/" -e "s/CrashLoopBackOff/${redtext}&${resetcolor}/" -e "s/Failed/${redtext}&${resetcolor}/" -e "s/CreateContainerError/${redtext}&${resetcolor}/" -e "s/CreateContainerConfigError/${redtext}&${resetcolor}/"
   if [[ ! -z ${DETAILS} ]]
   then
     fct_unsuccessful_pod_details
@@ -424,14 +449,14 @@ then
   then
     fct_unsuccessful_container_details
   else
-    ${OC} get pod -A -o wide | grep -Ev "Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
+    echo "${ALL_PODS_WIDE}" | grep -Ev "Completed|Succeeded|1/1|2/2|3/3|4/4|5/5|6/6|7/7|8/8|9/9|10/10|11/11|12/12|13/13|14/14|15/15" | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
   fi
   fct_title "High number POD restart (>${MIN_RESTART})"
   if [[ ! -z ${DETAILS} ]]
   then
     fct_restart_container_details
   else
-    ${OC} get pod -A -o wide | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
+    echo "${ALL_PODS_WIDE}" | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
   fi
 fi
 
