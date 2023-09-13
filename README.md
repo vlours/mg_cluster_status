@@ -135,7 +135,7 @@ And if you want to use the script with an option, simply add it at the end of th
 bash <(curl -s https://${URI}) -h
 ```
 
-Finally, if your DNS is providing IPV4 and IPV6 resolution and you want to force the connection through the IPV4 (or IPV6), simply add the `-4` (or `-6`)option in the curl command:
+Finally, if your DNS is providing IPV4 and IPV6 resolution and you want to force the connection through the IPV4 (or IPV6), simply add the `-4` (or `-6`) option in the curl command:
 
 ```bash
 bash <(curl -s -4 https://${URI})
