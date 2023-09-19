@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.8
+
+### Minor updates - 1.2.8
+
+- None
+
+### Release updates - 1.2.8
+
+- (CONTEXT)  Deleting the '.status.availableUpdates' from the clusterversion output
+- (EVENT)    Removing undesired "No Resources" message.
+- (OPERATOR) Removing the COs not owned by the ClusterVersion when checking for the updated versions.
+
+--------
+
 ## Version 1.2.7
 
 ### Minor updates - 1.2.7
