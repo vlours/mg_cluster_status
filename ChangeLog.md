@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.9
+
+### Minor updates - 1.2.9
+
+- None
+
+### Release updates - 1.2.9
+
+- (NODE) Fixing the memory reserved check in the detail view as the json can have a single or multiple entries in items[].
+- (NODE) Improve CSR visibility (sort by creationTimestamp, and highlight Approved CSRs)
+
+--------
+
 ## Version 1.2.8
 
 ### Minor updates - 1.2.8
