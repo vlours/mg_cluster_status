@@ -21,7 +21,8 @@
 ### Release updates - 1.2.9
 
 - (NODE) Fixing the memory reserved check in the detail view as the json can have a single or multiple entries in items[].
-- (NODE) Improve CSR visibility (sort by creationTimestamp, and highlight Approved CSRs)
+- (NODE) Improving CSR visibility (sort by creationTimestamp, and highlight Approved CSRs).
+- (ETCD) Improving visibility of the ETCD response time.
 
 --------
 

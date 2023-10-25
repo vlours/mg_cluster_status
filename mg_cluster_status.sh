@@ -492,7 +492,7 @@ then
   fct_title "ETCD Health"
   if [[ "${OC}" == "omg" ]] || [[ "${OC}" == "omc" ]]
   then
-    ${OC} etcd health | sed -e "s/ [0-9]\{3,9\}.*ms /${redtext}&${resetcolor}/" -e "s/ false /${redtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
+    ${OC} etcd health | sed -e "s/ [2-9][0-9].*ms /${yellowtext}&${resetcolor}/" -e "s/ [1-9][0-9]\{2,9\}.*ms /${redtext}&${resetcolor}/" -e "s/ false /${redtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
     fct_title "ETCD status"
     ${OC} etcd status | sed -e "s/ [3-9][0-9]% /${yellowtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
   else
