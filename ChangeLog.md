@@ -23,6 +23,7 @@
 - (NODE) Fixing the memory reserved check in the detail view as the json can have a single or multiple entries in items[].
 - (NODE) Improving CSR visibility (sort by creationTimestamp, and highlight Approved CSRs).
 - (ETCD) Improving visibility of the ETCD response time.
+- (ETCD) Describing the ETCD defragmentation threshold.
 
 --------
 

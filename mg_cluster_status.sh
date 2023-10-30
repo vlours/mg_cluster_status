@@ -493,7 +493,7 @@ then
   if [[ "${OC}" == "omg" ]] || [[ "${OC}" == "omc" ]]
   then
     ${OC} etcd health | sed -e "s/ [2-9][0-9].*ms /${yellowtext}&${resetcolor}/" -e "s/ [1-9][0-9]\{2,9\}.*ms /${redtext}&${resetcolor}/" -e "s/ false /${redtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
-    fct_title "ETCD status"
+    fct_title "ETCD status (automatic defrag threshold 45%)"
     ${OC} etcd status | sed -e "s/ [3-9][0-9]% /${yellowtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
   else
     # Display ETCD status when running the script against a cluster using 'oc' command
