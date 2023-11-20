@@ -7,7 +7,7 @@ This bash script will provide the overall status of the must-gather
 ### Requirements
 
 The script use the command `omc` (OpenShift Must-Gather Client)
-This command should be installed and available in your PATH on your laptop/server. It's available from download from github <https://github.com/gmeghnag/omc/README.md>
+This command should be installed and available in your PATH on your laptop/server. It's available for download from github <https://github.com/gmeghnag/omc/#readme>
 
 ### Installation
 
