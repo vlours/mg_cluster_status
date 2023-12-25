@@ -98,7 +98,7 @@ fct_version() {
           Time_Gap=$[$Current_time - $SCRIPT_mtime]
           if [[ ${Time_Gap} -gt ${Time_Gap_Alert} ]]
           then
-            UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | The script $(basename ${0}) is older (${Time_Gap}) than $[${Time_Gap_Alert} / 864000] days.\nPlease consider to update it if a new version is available. Thanks\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
+            UPDATE_MSG="Current Version:\t${redtext}${VERSION}${resetcolor} | The script $(basename ${0}) is older (${Time_Gap}) than $[${Time_Gap_Alert} / 86400] days.\nPlease consider to update it if a new version is available. Thanks\n[Source: ${bluetext}${SOURCE_URL}${resetcolor}]"
           fi
         else
           UPDATE_MSG="Current Version:\t${greentext}${VERSION}${resetcolor} | The script is up-to-date. Thanks"
@@ -345,8 +345,20 @@ then
   fi
   if [[ ! -z ${DETAILS} ]]
   then
+    case $(uname) in
+      "Darwin")
+        LAST_28days=$(date -r $[$(date +%s) - 2419200] +%Y-%m)
+        THIS_month=$(date -r $(date +%s) +%Y-%m)
+        ;;
+      *)
+        LAST_28days=$(date -d @$[$(date +%s) - 2419200] +%Y-%m)
+        THIS_month=$(date -d @$(date +%s) +%Y-%m)
+        ;;
+    esac
     fct_title_details "Node details"
-    echo "${NODE_JSON}" | jq -r '"|CPU||Memory||ephemeral-storage|||||Conditions||||\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|hugepages-1Gi|hugepages-2Mi|MemoryPressure|DiskPressure|PIDPressure|Ready|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(.status.allocatable.memory)|\(.status.capacity."ephemeral-storage")|\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki|\(.status.capacity.pods)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(.status.conditions[]|select(.type == "MemoryPressure")|.status)|\(.status.conditions[]|select(.type == "DiskPressure")|.status)|\(.status.conditions[]|select(.type == "PIDPressure")|.status)|\(.status.conditions[]|select(.type == "Ready")|.status)|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed  -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
+    echo "${NODE_JSON}" | jq -r '"|CPU||Memory||ephemeral-storage|||||\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(.status.allocatable.memory)|\(.status.capacity."ephemeral-storage")|\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki|\(.status.capacity.pods)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed  -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
+    fct_title_details "Node Conditions (yellow = NotReady transition within last 28-59 days)"
+    echo "${NODE_JSON}" | jq -r '"|Ready|||MemoryPressure|||DiskPressure|||PIDPressure|||\nNodename|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.conditions[]|select(.type == "Ready")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "MemoryPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "DiskPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "PIDPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")")' | column -t -s'|' | sed -e "s/\(^[- .a-zA-Z0-9]* *\)\([TF][a-z]* *\)\(${THIS_month}[-:T0-9]*Z\)/\1\2${yellowtext}\3${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)\([TF][a-z]* *\)\(${LAST_28days}[-:T0-9]*Z\)/\1\2${yellowtext}\3${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)True/\1${greentext}True${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)False/\1${redtext}False${resetcolor}/" -e "s/\([-:TZ0-9]*Z *\)True/\1${redtext}True${resetcolor}/g" -e "s/\([-:T0-9]*Z *\)False/\1${greentext}False${resetcolor}/g"
     KUBELETCONFIG=$(${OC} get kubeletconfig.machineconfiguration.openshift.io -o json | grep -Ev "^$|^No resources|^resource type" | jq -r 'if(.items != null) then . else null end')
     if [[ "${KUBELETCONFIG}" != "null" ]] && [[ "${KUBELETCONFIG}" != "" ]]
     then
@@ -531,7 +543,13 @@ then
       echo "--- Config Maps ---"
       ${OC} get configmap -n ${namespace} -o json | grep -Ev "^$|^No resources|^resource type" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -s '|' -t | tail -5
       echo "--- Installer Pods (up to 10) ---"
-      ${OC} get pod -n ${namespace} -l app=installer | grep -Ev "^$|^No resources|^resource type" | tail -10
+      INSTALLER_DETAILS=$(${OC} get pod -n ${namespace} -l app=installer -o json | grep -Ev "^$|^No resources|^resource type" | jq -r '.items | sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.name)|\(.status.containerStatuses[0]|"\(.name)|\(.restartCount)|\(.state | .[] |  "\(.startedAt)|\(.finishedAt)|\(.reason)")")"'| tail -10)
+      if [[ -z ${INSTALLER_DETAILS} ]]
+      then
+        echo "No resources pods.core found in ${namespace} namespace."
+      else
+        echo -e "POD Name|Container Name|restartCount|startedAt|finishedAt|reason\n${INSTALLER_DETAILS}" | column -t -s'|'
+      fi
       echo
     done
   fi
