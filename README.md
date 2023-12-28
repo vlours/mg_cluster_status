@@ -63,7 +63,7 @@ mg_check
 using the `-h` option will display the help and provide the list of the available options, and the version of the script.
 
 ```text
-usage: mg_cluster_status.sh [-acevimnops] [-d] [-h]
+usage: mg_cluster_status.sh [-acevMmnops] [-d] [-h]
 |---------------------------------------------------------------------------------------|
 | Options | Description                                                     | [Details] |
 |---------|-----------------------------------------------------------------|-----------|
@@ -71,7 +71,7 @@ usage: mg_cluster_status.sh [-acevimnops] [-d] [-h]
 |      -c | display the CLUSTER CONTEXT                                     |           |
 |      -e | display the ETCD status                                         |           |
 |      -v | display the EVENTS                                              |           |
-|      -i | display the MACHINES status                                     | [Y]       |
+|      -M | display the MACHINES status                                     | [Y]       |
 |      -m | display the MCO status                                          | [Y]       |
 |      -n | display the NODES status                                        | [Y]       |
 |      -o | display the OPERATORS status                                    | [Y]       |

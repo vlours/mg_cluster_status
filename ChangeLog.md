@@ -29,6 +29,7 @@
 - (NODE) Separating the status.conditions in the detailled output to include the transition dates.
 - (VERSION) fixing a typo in the over days calculation.
 - (STATIC) Improving the display of the installer POD details.
+- (ALERT) Updating the JQ query to check if '.data != null'
 
 --------
 
