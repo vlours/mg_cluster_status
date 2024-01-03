@@ -12,6 +12,39 @@
 
 --------
 
+## Version 1.2.10
+
+### Minor updates - 1.2.10
+
+- None
+
+### Release updates - 1.2.10
+
+- (MAIN) Replacing shotname objects by longname objects.
+- (MAIN) Protecting the JQ commands by excluding the outputs '^No resources|^resource type'
+- (MACHINE) Creating the machine and autoscaler health check (issue #1)
+- (MACHINE) Calculating the total amount of resource to compare them with the clusterAutoscaler setting (issue #14)
+- (HELP) Avoiding display current value identical to the default one.
+- (README) Updating the help options.
+- (NODE) Separating the status.conditions in the detailled output to include the transition dates.
+- (VERSION) fixing a typo in the over days calculation.
+- (STATIC) Improving the display of the installer POD details.
+- (ALERT) Updating the JQ query to check if '.data != null'
+
+--------
+
+## Version 1.2.9.1
+
+### Minor updates - 1.2.9.1
+
+- None
+
+### Release updates - 1.2.9.1
+
+- (README) fixing incorrect URI for the 'omc' readme.
+
+--------
+
 ## Version 1.2.9
 
 ### Minor updates - 1.2.9
