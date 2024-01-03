@@ -248,7 +248,7 @@ then
         ;;
       M)
         MACHINES=true
-        HAS_DETAILS=false
+        HAS_DETAILS=true
         ;;
       m)
         MCO=true
