@@ -12,6 +12,24 @@
 
 --------
 
+## Version 1.2.11
+
+### Minor updates - 1.2.11
+
+- None
+
+### Release updates - 1.2.11
+
+- (MAIN) Allowing to replace the colors by setting the variables before running the script (colorblind)
+- (README) explaining the new '-d' option for the help
+- (SCC) Adding the SecurityContextContraints data in the script
+- (POD) Including the PodDisruptionBudget details.
+- (MAIN) Avoiding content variables to be query twice.
+- (MAIN) Replacing all Shell variables in JQ command by args
+- (MAIN) Substituing '\n' characters in jq messages.
+
+--------
+
 ## Version 1.2.10
 
 ### Minor updates - 1.2.10
