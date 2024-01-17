@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.12
+
+### Minor updates - 1.2.12
+
+- None
+
+### Release updates - 1.2.12
+
+- (SCC) highlighting the recent SCCs
+- (MAIN) Remapping the STDERR and message exclusions as suggested in the issue #25
+- (ALERT) Replacing the 'alerts rules' by the new omc feature 'prometheus alertrule' (omc version: 3.4.0)
+
+--------
+
 ## Version 1.2.11
 
 ### Minor updates - 1.2.11
