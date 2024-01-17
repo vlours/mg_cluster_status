@@ -649,7 +649,7 @@ then
     #### Replaced to ensure the live and offline displays are similars.
     #fct_title "firing Alerts"
     #${OC} alerts rules -s firing | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/ [5-9]  /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{2,5\}  /${redtext}&${resetcolor}/"
-    RULES=$(${OC} alerts rules -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+    RULES=$(${OC} prometheus alertrule -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
   else
     TOKEN=$(oc get secret -n openshift-monitoring -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.metadata.name | test("prometheus-k8s-token")) and (.metadata.annotations."kubernetes.io/created-by" != null)) | .data.token' | base64 -d)
     PROMETHEUS_URL=$(oc get route.route.openshift.io -n openshift-monitoring prometheus-k8s -o jsonpath="{.status.ingress[0].host}" 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" )

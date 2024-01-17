@@ -22,6 +22,7 @@
 
 - (SCC) highlighting the recent SCCs
 - (MAIN) Remapping the STDERR and message exclusions as suggested in the issue #25
+- (ALERT) Replacing the 'alerts rules' by the new omc feature 'prometheus alertrule' (omc version: 3.4.0)
 
 --------
 
