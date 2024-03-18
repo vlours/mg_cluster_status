@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.13
+
+### Minor updates - 1.2.13
+
+- None
+
+### Release updates - 1.2.13
+
+- (NODE) Fixing an issue with the transition not highlithed when the status is 'UNKNOW'
+- (POD) Fixing an issue when the '.state.[status].message' is empty.
+- (HELP) Enable colours for the DETAILS_TAB in the 'Additional Options', to highlight the help details.
+
+--------
+
 ## Version 1.2.12
 
 ### Minor updates - 1.2.12
