@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.14
+
+### Minor updates - 1.2.14
+
+- None
+
+### Release updates - 1.2.14
+
+- (MCO) Add the osImageURL conflict review in detailled view
+- (SCC) Remove an useless grep condition
+- (NODE) display overcommitment in detailled node view for Live cluster (RFE #20)
+
+--------
+
 ## Version 1.2.13
 
 ### Minor updates - 1.2.13
