@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.13
+# @VERSION     # 1.2.14
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -392,6 +392,11 @@ then
     echo "${NODE_JSON}" | jq -r '"|CPU||Memory||ephemeral-storage|||||\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(.status.allocatable.memory)|\(.status.capacity."ephemeral-storage")|\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki|\(.status.capacity.pods)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed  -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
     fct_title_details "Node Conditions (yellow = NotReady transition within last 28-59 days)"
     echo "${NODE_JSON}" | jq -r '"|Ready|||MemoryPressure|||DiskPressure|||PIDPressure|||\nNodename|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.conditions[]|select(.type == "Ready")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "MemoryPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "DiskPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "PIDPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")")' | column -t -s'|' | sed -e "s/\(^[- .a-zA-Z0-9]* *\)\([TFU][a-z]* *\)\(${THIS_month}[-:T0-9]*Z\)/\1\2${yellowtext}\3${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)\([TFU][a-z]* *\)\(${LAST_28days}[-:T0-9]*Z\)/\1\2${yellowtext}\3${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)True/\1${greentext}True${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)False/\1${redtext}False${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)Unknown/\1${redtext}Unknown${resetcolor}/" -e "s/\([-:TZ0-9]*Z *\)True/\1${redtext}True${resetcolor}/g" -e "s/\([-:T0-9]*Z *\)False/\1${greentext}False${resetcolor}/g" -e "s/\([-:T0-9]*Z *\)Unknown/\1${redtext}Unknown${resetcolor}/g"
+    if [[ "${OC}" != "omg" ]] && [[ "${OC}" != "omc" ]]
+    then
+      fct_title_details "Node overcommitment"
+      ${OC} describe nodes |  awk 'BEGIN{printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n","NODENAME","Allocatable CPU","Allocatable MEM","Request CPU","(%)","Limit CPU","(%)","Request MEM","(%)","Limit MEM","(%)"}{if($1 == "Name:"){name=$2};if($1 ~ "Allocatable:"){while($1 != "System"){if($1 == "cpu:"){Alloc_cpu=$2};if($1 == "memory:"){Alloc_mem=$2};getline}};if($1 == "Resource"){while($1 != "Events:"){if($1 == "cpu"){req_cpu=$2;preq_cpu=$3;lim_cpu=$4;plim_cpu=$5};if($1 == "memory"){req_mem=$2;preq_mem=$3;lim_mem=$4;plim_mem=$5};getline};printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",name,Alloc_cpu,Alloc_mem,req_cpu,preq_cpu,lim_cpu,plim_cpu,req_mem,preq_mem,lim_mem,plim_mem}}'  | column -s'|' -t
+    fi
     KUBELETCONFIG=${KUBELETCONFIG:-$(${OC} get kubeletconfig.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r 'if(.items != null) then . else null end')}
     if [[ "${KUBELETCONFIG}" != "null" ]] && [[ "${KUBELETCONFIG}" != "" ]]
     then
@@ -487,14 +492,28 @@ then
     fct_title_details "Degraded nodes per MCP - details"
     echo -e "MCP Name|lastTransitionTime|reason|message\n${MCP_NODE_DEGRADED}" | column -t -s'|' | sed -e "s/R-\([0-9a-z \.\-]*\)-R/${redtext}\1    ${resetcolor}/" -e "s/Y-\(.*\)-Y$/${yellowtext}\1 ${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
   fi
-  PROCESSING_MCP=${PROCESSING_MCP:-$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select(.status.conditions[] | (.type == "Updated" and .status == "False")) | .metadata.name')}
+  MCP_JSON=$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}")
+  PROCESSING_MCP=${PROCESSING_MCP:-$(echo ${MCP_JSON} | jq -r '.items[] | select(.status.conditions[] | (.type == "Updated" and .status == "False")) | .metadata.name')}
   if [[ ! -z "${PROCESSING_MCP}" ]] && [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Processing MCP - machine-config-controller log"
     ${OC} logs -n openshift-machine-config-operator $(${OC} get pod -n openshift-machine-config-operator -l k8s-app=machine-config-controller -o name | grep -Ev "${MESSAGE_EXCLUSION}") -c machine-config-controller | grep -Ev "template_controller.go" | tail -${TAIL_LOG} | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
   fi
   fct_title "Latest MachineConfigs"
-  ${OC} get machineconfig.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10 | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
+  MC_JSON=$(${OC} get machineconfig.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}")
+  echo ${MC_JSON} | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10 | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
+  if [[ ! -z ${DETAILS} ]]
+  then
+    MC_JSON_conflicts=$(echo ${MC_JSON} | jq -r '.items[] | select((.spec.osImageURL != null) and (.spec.osImageURL != "")) | {name: .metadata.name, osImageURL: .spec.osImageURL}')
+    fct_title "osImageURL conflicts"
+    for mcp in $(echo ${MCP_JSON} | jq -r '.items[].metadata.name'); do
+      printf "Checking MCP ${mcp}: "
+      for mc in $(echo ${MCP_JSON} | jq -r --arg mcp ${mcp} '.items[] | select(.metadata.name == $mcp) | .status.configuration.source[].name'); do
+        echo ${MC_JSON_conflicts} | jq -r --arg mc ${mc} 'select(.name == $mc) | {name: .name, osImageURL: .osImageURL} '
+      done | jq -rs 'group_by(.osImageURL) | if length > 1 then "conflicts detected", . else "all osImageURLs match" end' | sed -e "s/.*/${yellowtext}&${resetcolor}/" -e "s/conflicts detected/${redtext}&${resetcolor}/" -e "s/all osImageURLs match/${greentext}&${resetcolor}/"
+      echo "-------------------"
+    done
+  fi
   fct_title "MCP state & versions"
   ${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"MCP Name | Current Rendered | Desired Rendered | Paused | maxUnavailable",(.items[] | "\(.metadata.name) | \(if (.spec.configuration.name != .status.configuration.name) then "RED"+.status.configuration.name else "GREEN"+.status.configuration.name end) | \(.spec.configuration.name) | \(if (.spec.paused != null) then .spec.paused else false end) | \(if (.spec.maxUnavailable != null) then .spec.maxUnavailable else 1 end )")' | column -t -s'|' | sed -e "s/ [1-9]\{1,5\}[0-9][%]*$/${yellowtext}&${resetcolor}/" -e "s/ true /${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/" -e "s/RED\([0-9a-z\-]*\)/${redtext}\1   ${resetcolor}/g" -e "s/GREEN\([0-9a-z\-]*\)/${greentext}\1     ${resetcolor}/g"
   fct_title "MCO by node"
@@ -544,7 +563,7 @@ then
       ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json | grep -Ev "${MESSAGE_EXCLUSION}")}
       for POLICY in ${POLICIES}
       do
-        echo "${ALL_PODS_JSON}" | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r --arg policy ${POLICY} '.items[] | select((.metadata.annotations."openshift.io/scc" == $policy) and  (.status.phase == "Running")) | .metadata | "\(.namespace)|\(if (.namespace | test("openshift-")) then "R_\(.name)" else .name end)|Y_\(.annotations."openshift.io/scc")|\(.creationTimestamp)"'
+        echo "${ALL_PODS_JSON}" | jq -r --arg policy ${POLICY} '.items[] | select((.metadata.annotations."openshift.io/scc" == $policy) and  (.status.phase == "Running")) | .metadata | "\(.namespace)|\(if (.namespace | test("openshift-")) then "R_\(.name)" else .name end)|Y_\(.annotations."openshift.io/scc")|\(.creationTimestamp)"'
       done | column -t -s'|' | sed -e "s/\(${THIS_month}[-:T0-9]*Z\)$/${yellowtext}\1${resetcolor}/" -e "s/\(${LAST_28days}[-:T0-9]*Z\)$/${yellowtext}\1${resetcolor}/" -e "s/R_\([-a-z0-9]*\)/${redtext}\1  ${resetcolor}/g" -e "s/Y_\([-a-z0-9]*\)/${yellowtext}\1  ${resetcolor}/g" -e "s/G_\([-a-z0-9]*\)/${greentext}\1  ${resetcolor}/g"
     fi
   fi
