@@ -83,7 +83,7 @@ usage: mg_cluster_status.sh [-acevMmnopsS] [-d] [-h]
 |         | Additional Options:                                             |           |
 |---------|-----------------------------------------------------------------|-----------|
 |      -d | display additional details on specific Options (as noted above) |           |
-|      -h | display this help and check for updated version                 |           |
+|      -h | display this help and check for updated version                 | [Y]       |
 |---------------------------------------------------------------------------------------|
 
 Customizable variables before running the script (Optional):
@@ -92,8 +92,9 @@ Customizable variables before running the script (Optional):
 |-----------------------------------|----------------------------------------------------------------------------------|------------|-----------|
 |export OC=[omc|omg|oc]             | #Change the must-gather tool (use 'oc' to run the script against live cluster)   | [omc]      |           |
 |export ALERT_TRUNK=<interger>      | #Change the length of the Alert Descriptions                                     | [100]      |           |
-|export CONDITION_TRUNK=<interger   | #Change the length of the Operator Message in 'oc get co'                        | [220]      |           |
-|export POD_TRUNK=<interger         | #Change the length of the POD Message in 'oc get co'                             | [100]      |           |
+|export CONDITION_TRUNK=<interger>  | #Change the length of the Operator Message in 'oc get co'                        | [220]      |           |
+|export POD_TRUNK=<interger>        | #Change the length of the POD Message in 'oc get pod'                            | [100]      |           |
+|export POD_WIDE=<boolean>          | #Enable/Disable the '-o wide' option in the command 'oc get pod'                 | [true]     |           |
 |export MIN_RESTART=<integer>       | #Change the minimal number of restart when checking the POD restarts             | [10]       |           |
 |export TAIL_LOG=<integer>          | #Change the number of lines displayed from logs ('tail')                         | [15]       |           |
 |export graytext=<color_code>       | #Replace the gray color used in the script                                       | [\x1B[30m] |           |

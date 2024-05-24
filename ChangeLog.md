@@ -12,6 +12,25 @@
 
 --------
 
+## Version 1.2.15
+
+### Minor updates - 1.2.15
+
+- None
+
+### Release updates - 1.2.15
+
+- (NODE) Update the overcommitment details to include the POD count and node pod subnet.
+- (CONTEXT) Include the installation type, based on the methode used in Insights.
+- (CONTEXT) Advise if KeepAlive PODs are running in the cluster, to highlight cluster with VIPs.
+- (POD) Highlight the 'Evicted' status in the 'Unsuccessful PODs' section,
+- (POD) Merging ALL_PODS_WIDE in ALL_PODS to ensure to always have the node name display.
+- (POD) Optimization of the fct_unsuccessful_container_details and fct_restart_container_details functions.
+- (HELP) Explaining the new 'POD_WIDE' variable.
+- (HELP) Flaging the detail option for the help (-h) option.
+
+--------
+
 ## Version 1.2.14
 
 ### Minor updates - 1.2.14
