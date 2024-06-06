@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.16
+
+### Minor updates - 1.2.16
+
+- None
+
+### Release updates - 1.2.16
+
+- (CONTEXT) Hightlight 'overrides' in the 'Clusterversion detailled' section.
+- (Alert) Highlight on severity including uppercase first letter.
+- (Alert) Fixed annotation tests and added '.annotations.summary' as third option.
+- (Operator) Highlight the CSV status.
+
+--------
+
 ## Version 1.2.15
 
 ### Minor updates - 1.2.15
