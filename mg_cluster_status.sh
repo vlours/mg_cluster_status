@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.15
+# @VERSION     # 1.2.16
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -375,7 +375,7 @@ then
   fct_title "Clusterversion"
   ${OC} get clusterversion.config.openshift.io | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; printf "%s|%s|\n",$5,substr($0,index($0,$6))}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
   fct_title "Clusterversion detailled"
-  ${OC} get clusterversion.config.openshift.io version -o json | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)'
+  ${OC} get clusterversion.config.openshift.io version -o json | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}overrides${resetcolor}/g"
   fct_title "Type of Installation"
   INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config openshift-install-manifests -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
   case ${INSTALLER_INVOKER} in
@@ -514,7 +514,7 @@ then
     done
   fi
   fct_title "CSV"
-  echo -e "Name | Display Name | Version | Phase\n$(${OC} get clusterserviceversion.operators.coreos.com -A -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|"
+  echo -e "Name | Display Name | Version | Phase\n$(${OC} get clusterserviceversion.operators.coreos.com -A -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|" | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g"
 fi
 
 ########### MCO ###########
@@ -719,7 +719,7 @@ then
     fct_title "firing Alerts"
     echo ${RULES} | jq -r '"RULE|STATE|AGE|ALERTS|ACTIVE SINCE",(if .data != null then (.data[] | select(.state == "firing") | "\(.name)|\(.state)|N/A|\(.alerts | length)|\("\(.alerts | sort_by(.activeAt) | .[0].activeAt[0:19])Z"|fromdate|strftime("%d %b %y %H:%M UTC"))") else "" end)' | column -s'|' -t | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/ [5-9]  /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{2,5\}  /${redtext}&${resetcolor}/"
     fct_title "Firing Alerts rules details"
-    echo ${RULES} | jq -r --arg trunk ${ALERT_TRUNK} '"ALERTNAME|LAST ACTIVE|NAMESPACE|WORKLOAD,LABEL,ENDPOINT,JOB,SERVICE OR NODE|SEVERITY|DESCRIPTION|",if .data != null then (.data[] | select(.state == "firing") | .alerts | sort_by(.activeAt) | .[] | "\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node else .labels.service end)|\(.labels.severity)|\(if (.annotations.description != null) then .annotations.description[0:($trunk|tonumber)] | sub("\n";" ") else .annotations.message[0:($trunk|tonumber)] | sub("\n";" ") end)") else "" end' | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' -e "s/ warning /${yellowtext}&${resetcolor}/" -e "s/ info /${greentext}&${resetcolor}/" -e "s/ critical /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/"
+    echo ${RULES} | jq -r --arg trunk ${ALERT_TRUNK} '"ALERTNAME|LAST ACTIVE|NAMESPACE|WORKLOAD,LABEL,ENDPOINT,JOB,SERVICE OR NODE|SEVERITY|DESCRIPTION|",if .data != null then (.data[] | select(.state == "firing") | .alerts | sort_by(.activeAt) | .[] | "\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node else .labels.service end)|\(.labels.severity)|\(if (.annotations != null) then (if (.annotations.description != null) then .annotations.description[0:($trunk|tonumber)] | sub("\n";" ") elif (.annotations.message != null) then .annotations.message[0:($trunk|tonumber)] | sub("\n";" ") elif (.annotations.summary != null) then .annotations.summary[0:($trunk|tonumber)] | sub("\n";" ") else "N/A" end) else "N/A" end)") else "" end' | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' -e "s/ [Ww]arning /${yellowtext}&${resetcolor}/" -e "s/ [Ii]nfo /${greentext}&${resetcolor}/" -e "s/ [Cc]ritical /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/"
   else
     ERR_MSG="Failed to retrieve and display the Alerts"
     fct_title "firing Alerts"
