@@ -12,6 +12,24 @@
 
 --------
 
+## Version 1.2.17
+
+### Minor updates - 1.2.17
+
+- None
+
+### Release updates - 1.2.17
+
+- (ETCD) Hightlight details when running against a live cluster.
+- (POD) Hightlight new type in the "Unsuccessful PODs" section.
+- (NODE) ADD variable to manage and hightlight ALL recent transitions
+- (MCP) Ensure nodes are not missing in MCP
+- (OPERATOR) Show the transitions time when details are requested.
+- (MAIN) Enforce the YQ substitution: sub("\n";" ";"g")
+- (HELP/README) Adding description of exportable VARIABLEs for transition checks
+
+--------
+
 ## Version 1.2.16
 
 ### Minor updates - 1.2.16
