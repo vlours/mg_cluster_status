@@ -351,7 +351,7 @@ then
 fi
 if [[ -z ${HAS_DETAILS} ]] && [[ ! -z ${DETAILS} ]]
 then
-  echo -e "${cyantext}[Info] The parameters used has no detailled output. The '-d' option will be ignored${resetcolor}"
+  echo -e "${cyantext}[Info] The parameters used has no detailed output. The '-d' option will be ignored${resetcolor}"
 fi
 ##### Main Variables
 # OC command to use - Default: omc
@@ -381,7 +381,7 @@ then
   fct_header "CLUSTER CONTEXT"
   fct_title "Clusterversion"
   ${OC} get clusterversion.config.openshift.io | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; printf "%s|%s|\n",$5,substr($0,index($0,$6))}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
-  fct_title "Clusterversion detailled"
+  fct_title "Clusterversion detailed"
   ${OC} get clusterversion.config.openshift.io version -o json | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}overrides${resetcolor}/g"
   fct_title "Type of Installation"
   INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config openshift-install-manifests -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
@@ -439,7 +439,7 @@ then
     GAWK_PATH=$(which gawk 2>${STD_ERR})
     if [[ -z ${GAWK_PATH} ]]
     then
-      echo "WARNING: Unable to display this detailled view as it requires 'gawk' to run. Please consider installing it on this server"
+      echo "WARNING: Unable to display this detailed view as it requires 'gawk' to run. Please consider installing it on this server"
       echo "         Using previous script version displaying transitions between 28-59 days"
       echo "${NODE_JSON}" | jq -r '" |Ready| | |MemoryPressure| | |DiskPressure| | |PIDPressure\nNodename|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.conditions[]|select(.type == "Ready")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "MemoryPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "DiskPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "PIDPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")")' | column -t -s'|' | sed -e "s/\([TFU][a-z]* *\)\(${THIS_month}[-:T0-9]*Z\)/\1${yellowtext}\2${resetcolor}/g" -e "s/\([TFU][a-z]* *\)\(${LAST_28days}[-:T0-9]*Z\)/\1${yellowtext}\2${resetcolor}/g" -e "s/\(^[- .a-zA-Z0-9]* *\)True/\1${greentext}True${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)False/\1${redtext}False${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)Unknown/\1${redtext}Unknown${resetcolor}/" -e "s/\([-:TZ0-9]*Z *\)True/\1${redtext}True${resetcolor}/g" -e "s/\([-:T0-9]*Z *\)False/\1${greentext}False${resetcolor}/g" -e "s/\([-:T0-9]*Z *\)Unknown/\1${redtext}Unknown${resetcolor}/g"
     else
@@ -517,7 +517,7 @@ then
     GAWK_PATH=$(which gawk 2>${STD_ERR})
     if [[ -z ${GAWK_PATH} ]]
     then
-      echo "WARNING: Unable to display this detailled view as it requires 'gawk' to run. Please consider installing it on this server"
+      echo "WARNING: Unable to display this detailed view as it requires 'gawk' to run. Please consider installing it on this server"
     else
       TRANSITION_DAYS=$[${Current_time} - (${OPERATOR_TRANSITION_DAYS} * 24 * 3600)]
       ${OC} get clusteroperator.config.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r --arg trunk ${CONDITION_TRUNK} '" | |AVAILABLE| |PROGRESSING| |DEGRADED| | | |\nNAME|VERSION|status|lastTransitionTime|status|lastTransitionTime|status|lastTransitionTime|LASTTRANSTION|MESSAGE",(.items[] | "\(.metadata.name)|\(.status.versions[] | select(.name == "operator") | .version)|\(.status.conditions[] |select(.type == "Available") | "\(.status)|\(.lastTransitionTime)")|\(.status.conditions[] |select(.type == "Progressing") | "\(.status)|\(.lastTransitionTime)")|\(.status.conditions[] |select(.type == "Degraded") | "\(.status)|\(.lastTransitionTime)")|\(if ((.status.conditions[] | select(.type == "Degraded") | .message) != null and (.status.conditions[] |select(.type == "Degraded") | .status) == "True") then "\(.status.conditions[] | select(.type == "Degraded") | (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")))"  elif ((.status.conditions[] |select(.type == "Progressing") | .message) != null and (.status.conditions[] |select(.type == "Progressing") | .status) == "True") then "\(.status.conditions[] |select(.type == "Progressing") | (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")))" elif ((.status.conditions[] |select(.type == "Available") | .message) != null and (.status.conditions[] |select(.type == "Available") | .status) == "True") then "\(.status.conditions[] |select(.type == "Available") | (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")))" else "" end)")' 2>${STD_ERR} | ${GAWK_PATH} -F'|' -v daysbefore=${TRANSITION_DAYS} '{printf "%s|%s|",$1,$2; if(($3 == "AVAILABLE")||($3 == "status")){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3};if(($4 == "lastTransitionTime")||($4==" ")){printf "%s|",$4}else{time=gensub(/[-:TZ]/," ","g",$4);epoch_fmt=mktime(time);if(epoch_fmt > daysbefore){printf "Y_%s|",$4}else{printf "%s|",$4}}; if(($5 == "PROGRESSING")||($5 == "status")){printf "%s|",$5} else if($5 == "True"){printf "Y%s|",$5}else{printf "G%s|",$5};if(($6 == "lastTransitionTime")||($6==" ")){printf "%s|",$6}else{time=gensub(/[-:TZ]/," ","g",$6);epoch_fmt=mktime(time);if(epoch_fmt > daysbefore){printf "Y_%s|",$6}else{printf "%s|",$6}}; if(($7 == "DEGRADED")||($7 == "status")){printf "%s|",$7} else if($7 == "True"){printf "R%s|",$7}else{printf "G%s|",$7}; if(($8 == "lastTransitionTime")||($8==" ")){printf "%s|",$8}else{time=gensub(/[-:TZ]/," ","g",$8);epoch_fmt=mktime(time);if(epoch_fmt > daysbefore){printf "Y_%s|",$8}else{printf "%s|",$8}};printf "%s\n",$9}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g" -e "s/Y_\([0-9TZ:-]*\)/${yellowtext}\1  ${resetcolor}/g"
