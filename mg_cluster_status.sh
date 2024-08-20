@@ -554,19 +554,19 @@ then
   ${OC} get machineconfigpool.machineconfiguration.openshift.io | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "UPDATED"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "UPDATING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; if($5 == "DEGRADED"){printf "%s|",$5} else if($5 == "True"){printf "R%s|",$5}else{printf "G%s|",$5}; printf "%s|",$6; if($7 == "READYMACHINECOUNT"){printf "%s|",$7} else if($7 != $6){printf "R%s|",$7}else{printf "G%s|",$7}; if($8 == "UPDATEDMACHINECOUNT"){printf "%s|",$8} else if($8 != $6){printf "Y%s|",$8}else{printf "G%s|",$8}; if($9 == "DEGRADEDMACHINECOUNT"){printf "%s|",$9} else if($9 != 0){printf "Y%s|",$9}else{printf "G%s|",$9}; printf "%s \n",$10}' | column -t -s '|' | sed -e "s/G\([FT]*[a-z0-9]\{1,5\}\\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT]*[0-9a-z]\{1,5\}\\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT]*[0-9a-z]\{1,5\}\\)/${redtext}\1 ${resetcolor}/g" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
   MCP_NODE_DEGRADED=${MCP_NODE_DEGRADED:-$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r --arg trunk ${CONDITION_TRUNK} '.items[] | select(.status.conditions[] | (.type == "NodeDegraded" and .status == "True")) | "\(.metadata.name)|\(.status.conditions[] | select(.type == "NodeDegraded") | .lastTransitionTime)|R-\(.status.conditions[] | select(.type == "NodeDegraded") | .reason)-R|Y-\(.status.conditions[] | select(.type == "NodeDegraded") | .message[0:($trunk|tonumber)] | sub("\n";" ";"g"))-Y"')}
   NODE_JSON=${NODE_JSON:-$(${OC} get nodes -o json | grep -Ev "${MESSAGE_EXCLUSION}")}
+  MCP_JSON=$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}")
   if [[ ! -z "${MCP_NODE_DEGRADED}" ]] && [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Degraded nodes per MCP - details"
     echo -e "MCP Name|lastTransitionTime|reason|message\n${MCP_NODE_DEGRADED}" | column -t -s'|' | sed -e "s/R-\([0-9a-z \.\-]*\)-R/${redtext}\1    ${resetcolor}/" -e "s/Y-\(.*\)-Y$/${yellowtext}\1 ${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
   fi
   NODE_COUNT=$(${OC} get nodes | grep -Ev "${MESSAGE_EXCLUSION}|^NAME" | wc -l)
-  NODE_MCP=$(${OC} get machineconfigpool.machineconfiguration.openshift.io | grep -Ev "${MESSAGE_EXCLUSION}|^NAME" | awk 'BEGIN{count=0}{count+=$7}END{print count}')
+  NODE_MCP=$(echo ${MCP_JSON} | jq -r '[.items[] | .status.machineCount | tonumber] | add')
   if [[ ${NODE_COUNT} != ${NODE_MCP} ]]
   then
     fct_title_details "Incorrect MCP Nodes count"
     echo -e "Number of Nodes:|${NODE_COUNT}\nNumber of Nodes associate to MCP:|${redtext}${NODE_MCP}${resetcolor}" | column -ts '|'
   fi
-  MCP_JSON=$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}")
   PROCESSING_MCP=${PROCESSING_MCP:-$(echo ${MCP_JSON} | jq -r '.items[] | select(.status.conditions[] | (.type == "Updated" and .status == "False")) | .metadata.name')}
   if [[ ! -z "${PROCESSING_MCP}" ]] && [[ ! -z ${DETAILS} ]]
   then
