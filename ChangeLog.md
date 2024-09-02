@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.18
+
+### Minor updates - 1.2.18
+
+- None
+
+### Release updates - 1.2.18
+
+- (OPERATOR) Reduce the number of OC requests.
+- (OPERATOR) Ensure that some CO statuses are display even when 'unknown'.
+- (MCO) Ensure the number returned in 'NODE_COUNT' is a number.
+
+--------
+
 ## Version 1.2.17
 
 ### Minor updates - 1.2.17
@@ -23,7 +37,7 @@
 - (ETCD) Hightlight details when running against a live cluster.
 - (POD) Hightlight new type in the "Unsuccessful PODs" section.
 - (NODE) ADD variable to manage and hightlight ALL recent transitions
-- (MCP) Ensure nodes are not missing in MCP
+- (MCO) Ensure nodes are not missing in MCP
 - (OPERATOR) Show the transitions time when details are requested.
 - (MAIN) Enforce the YQ substitution: sub("\n";" ";"g")
 - (HELP/README) Adding description of exportable VARIABLEs for transition checks
