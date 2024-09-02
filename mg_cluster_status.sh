@@ -351,7 +351,7 @@ then
 fi
 if [[ -z ${HAS_DETAILS} ]] && [[ ! -z ${DETAILS} ]]
 then
-  echo -e "${cyantext}[Info] The parameters used has no detailled output. The '-d' option will be ignored${resetcolor}"
+  echo -e "${cyantext}[Info] The parameters used has no detailed output. The '-d' option will be ignored${resetcolor}"
 fi
 ##### Main Variables
 # OC command to use - Default: omc
@@ -381,7 +381,7 @@ then
   fct_header "CLUSTER CONTEXT"
   fct_title "Clusterversion"
   ${OC} get clusterversion.config.openshift.io | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; printf "%s|%s|\n",$5,substr($0,index($0,$6))}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
-  fct_title "Clusterversion detailled"
+  fct_title "Clusterversion detailed"
   ${OC} get clusterversion.config.openshift.io version -o json | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}overrides${resetcolor}/g"
   fct_title "Type of Installation"
   INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config openshift-install-manifests -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
@@ -439,7 +439,7 @@ then
     GAWK_PATH=$(which gawk 2>${STD_ERR})
     if [[ -z ${GAWK_PATH} ]]
     then
-      echo "WARNING: Unable to display this detailled view as it requires 'gawk' to run. Please consider installing it on this server"
+      echo "WARNING: Unable to display this detailed view as it requires 'gawk' to run. Please consider installing it on this server"
       echo "         Using previous script version displaying transitions between 28-59 days"
       echo "${NODE_JSON}" | jq -r '" |Ready| | |MemoryPressure| | |DiskPressure| | |PIDPressure\nNodename|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|Status|lastTransitionTime|lastHeartbeatTime|",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.conditions[]|select(.type == "Ready")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "MemoryPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "DiskPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")|\(.status.conditions[]|select(.type == "PIDPressure")|"\(.status)|\(.lastTransitionTime)|\(.lastHeartbeatTime)")")' | column -t -s'|' | sed -e "s/\([TFU][a-z]* *\)\(${THIS_month}[-:T0-9]*Z\)/\1${yellowtext}\2${resetcolor}/g" -e "s/\([TFU][a-z]* *\)\(${LAST_28days}[-:T0-9]*Z\)/\1${yellowtext}\2${resetcolor}/g" -e "s/\(^[- .a-zA-Z0-9]* *\)True/\1${greentext}True${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)False/\1${redtext}False${resetcolor}/" -e "s/\(^[- .a-zA-Z0-9]* *\)Unknown/\1${redtext}Unknown${resetcolor}/" -e "s/\([-:TZ0-9]*Z *\)True/\1${redtext}True${resetcolor}/g" -e "s/\([-:T0-9]*Z *\)False/\1${greentext}False${resetcolor}/g" -e "s/\([-:T0-9]*Z *\)Unknown/\1${redtext}Unknown${resetcolor}/g"
     else
@@ -518,7 +518,7 @@ then
     GAWK_PATH=$(which gawk 2>${STD_ERR})
     if [[ -z ${GAWK_PATH} ]]
     then
-      echo "WARNING: Unable to display this detailled view as it requires 'gawk' to run. Please consider installing it on this server"
+      echo "WARNING: Unable to display this detailed view as it requires 'gawk' to run. Please consider installing it on this server"
     else
       TRANSITION_DAYS=$[${Current_time} - (${OPERATOR_TRANSITION_DAYS} * 24 * 3600)]
       echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '" | |AVAILABLE| |PROGRESSING| |DEGRADED| | | |\nNAME|VERSION|status|lastTransitionTime|status|lastTransitionTime|status|lastTransitionTime|LASTTRANSTION|MESSAGE|",(.items[] | "\(.metadata.name)|\(if(.status.versions != null) then (.status.versions[] | select(.name == "operator") | .version) else " " end)|\(if(.status.conditions != null) then ("\(.status.conditions[] |select(.type == "Available") | "\(.status)|\(.lastTransitionTime)")|\(.status.conditions[] |select(.type == "Progressing") | "\(.status)|\(.lastTransitionTime)")|\(.status.conditions[] |select(.type == "Degraded") | "\(.status)|\(.lastTransitionTime)")|\(.status.conditions | if(.[]|select(.type == "Degraded") | (.message != null) and (.status == "True")) then .[]|select(.type == "Degraded") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) elif (.[]|select(.type == "Progressing") | (.message != null) and (.status == "True")) then .[]|select(.type == "Progressing") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) elif (.[]|select(.type == "Available") | (.message != null) and (.status == "True")) then .[]|select(.type == "Available") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) else " | " end)") else "Unknown| |Unknown| |Unknown| | " end)|")' 2>${STD_ERR} | ${GAWK_PATH} -F'|' -v daysbefore=${TRANSITION_DAYS} '{printf "%s|%s|",$1,$2; if(($3 == "AVAILABLE")||($3 == "status")){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3};if(($4 == "lastTransitionTime")||($4==" ")){printf "%s|",$4}else{time=gensub(/[-:TZ]/," ","g",$4);epoch_fmt=mktime(time);if(epoch_fmt > daysbefore){printf "Y_%s|",$4}else{printf "%s|",$4}}; if(($5 == "PROGRESSING")||($5 == "status")){printf "%s|",$5} else if($5 == "True"){printf "Y%s|",$5}else{printf "G%s|",$5};if(($6 == "lastTransitionTime")||($6==" ")){printf "%s|",$6}else{time=gensub(/[-:TZ]/," ","g",$6);epoch_fmt=mktime(time);if(epoch_fmt > daysbefore){printf "Y_%s|",$6}else{printf "%s|",$6}}; if(($7 == "DEGRADED")||($7 == "status")){printf "%s|",$7} else if($7 == "True"){printf "R%s|",$7}else{printf "G%s|",$7}; if(($8 == "lastTransitionTime")||($8==" ")){printf "%s|",$8}else{time=gensub(/[-:TZ]/," ","g",$8);epoch_fmt=mktime(time);if(epoch_fmt > daysbefore){printf "Y_%s|",$8}else{printf "%s|",$8}};printf "%s|%s\n",$9,$10}' | column -t -s '|' | sed -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g" -e "s/Y_\([0-9TZ:-]*\)/${yellowtext}\1  ${resetcolor}/g" -e "s/[RG]\(Unknown\)/${yellowtext}\1 ${resetcolor}/g"
@@ -555,19 +555,19 @@ then
   ${OC} get machineconfigpool.machineconfiguration.openshift.io | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "UPDATED"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "UPDATING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; if($5 == "DEGRADED"){printf "%s|",$5} else if($5 == "True"){printf "R%s|",$5}else{printf "G%s|",$5}; printf "%s|",$6; if($7 == "READYMACHINECOUNT"){printf "%s|",$7} else if($7 != $6){printf "R%s|",$7}else{printf "G%s|",$7}; if($8 == "UPDATEDMACHINECOUNT"){printf "%s|",$8} else if($8 != $6){printf "Y%s|",$8}else{printf "G%s|",$8}; if($9 == "DEGRADEDMACHINECOUNT"){printf "%s|",$9} else if($9 != 0){printf "Y%s|",$9}else{printf "G%s|",$9}; printf "%s \n",$10}' | column -t -s '|' | sed -e "s/G\([FT]*[a-z0-9]\{1,5\}\\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT]*[0-9a-z]\{1,5\}\\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT]*[0-9a-z]\{1,5\}\\)/${redtext}\1 ${resetcolor}/g" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
   MCP_NODE_DEGRADED=${MCP_NODE_DEGRADED:-$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r --arg trunk ${CONDITION_TRUNK} '.items[] | select(.status.conditions[] | (.type == "NodeDegraded" and .status == "True")) | "\(.metadata.name)|\(.status.conditions[] | select(.type == "NodeDegraded") | .lastTransitionTime)|R-\(.status.conditions[] | select(.type == "NodeDegraded") | .reason)-R|Y-\(.status.conditions[] | select(.type == "NodeDegraded") | .message[0:($trunk|tonumber)] | sub("\n";" ";"g"))-Y"')}
   NODE_JSON=${NODE_JSON:-$(${OC} get nodes -o json | grep -Ev "${MESSAGE_EXCLUSION}")}
+  MCP_JSON=$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}")
   if [[ ! -z "${MCP_NODE_DEGRADED}" ]] && [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Degraded nodes per MCP - details"
     echo -e "MCP Name|lastTransitionTime|reason|message\n${MCP_NODE_DEGRADED}" | column -t -s'|' | sed -e "s/R-\([0-9a-z \.\-]*\)-R/${redtext}\1    ${resetcolor}/" -e "s/Y-\(.*\)-Y$/${yellowtext}\1 ${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/"
   fi
   NODE_COUNT=$(${OC} get nodes | grep -Ev "${MESSAGE_EXCLUSION}|^NAME" | wc -l | awk '{print $1}')
-  NODE_MCP=$(${OC} get machineconfigpool.machineconfiguration.openshift.io | grep -Ev "${MESSAGE_EXCLUSION}|^NAME" | awk 'BEGIN{count=0}{count+=$7}END{print count}')
+  NODE_MCP=$(echo ${MCP_JSON} | jq -r '[.items[] | .status.machineCount | tonumber] | add')
   if [[ ${NODE_COUNT} != ${NODE_MCP} ]]
   then
     fct_title_details "Incorrect MCP Nodes count"
     echo -e "Number of Nodes:|${NODE_COUNT}\nNumber of Nodes associate to MCP:|${redtext}${NODE_MCP}${resetcolor}" | column -ts '|'
   fi
-  MCP_JSON=$(${OC} get machineconfigpool.machineconfiguration.openshift.io -o json | grep -Ev "${MESSAGE_EXCLUSION}")
   PROCESSING_MCP=${PROCESSING_MCP:-$(echo ${MCP_JSON} | jq -r '.items[] | select(.status.conditions[] | (.type == "Updated" and .status == "False")) | .metadata.name')}
   if [[ ! -z "${PROCESSING_MCP}" ]] && [[ ! -z ${DETAILS} ]]
   then
