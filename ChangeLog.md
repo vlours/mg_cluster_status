@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.19
+
+### Minor updates - 1.2.19
+
+- None
+
+### Release updates - 1.2.19
+
+- (MCO) Showing the 'unavailableMachineCount' in 'MCP state & versions' section
+- (GLOBAL) fixing reference to 'oc' commandand enforcing the STD_ERR redirection
+- (POD/SCC) ADDING the capability to focus on a specific Namespace using the '-N <namespace>' option
+- (SCC) Usage the 'NODE_TRANSITION_DAYS' to add flexibility when reviewing the SCC creationTimestamps and POD creations
+
+--------
+
 ## Version 1.2.18
 
 ### Minor updates - 1.2.18
