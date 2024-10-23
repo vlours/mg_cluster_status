@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.20
+
+### Minor updates - 1.2.20
+
+- None
+
+### Release updates - 1.2.20
+
+- (README) Quick fix updating the README with the new '-N namespace' option
+- (ChangeLog) Fixing some markdownint issues
+
+--------
+
 ## Version 1.2.19
 
 ### Minor updates - 1.2.19
@@ -22,7 +35,7 @@
 
 - (MCO) Showing the 'unavailableMachineCount' in 'MCP state & versions' section
 - (GLOBAL) fixing reference to 'oc' commandand enforcing the STD_ERR redirection
-- (POD/SCC) ADDING the capability to focus on a specific Namespace using the '-N <namespace>' option
+- (POD/SCC) ADDING the capability to focus on a specific Namespace using the '-N namespace' option
 - (SCC) Usage the 'NODE_TRANSITION_DAYS' to add flexibility when reviewing the SCC creationTimestamps and POD creations
 
 --------

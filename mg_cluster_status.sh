@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.19
+# @VERSION     # 1.2.20
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -15,7 +15,7 @@ fct_help(){
   then
     ScriptName=$(basename $0)
   fi
-  echo -e "usage: ${cyantext}${ScriptName} [-acevMmnopsS] ${purpletext}[-d] [-h]${resetcolor}"
+  echo -e "usage: ${cyantext}${ScriptName} [-acevMmnopsS] [-N namespace] ${purpletext}[-d] [-h]${resetcolor}"
   OPTION_TAB=8
   DESCR_TAB=63
   DETAILS_TAB=10
@@ -28,6 +28,7 @@ fct_help(){
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-v" "display the EVENTS" ""
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-M" "display the MACHINES status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-m" "display the MCO status" "[Y]"
+  printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-N" "set a namespace to filter the SCC and PODs" ""
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-n" "display the NODES status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-o" "display the OPERATORS status" "[Y]"
   printf "|${cyantext}%${OPTION_TAB}s${resetcolor} | %-${DESCR_TAB}s | ${greentext}%-${DETAILS_TAB}s${resetcolor}|\n" "-p" "display the PODS status" "[Y]"
