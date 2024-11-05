@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.20
+# @VERSION     # 1.2.21
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -216,16 +216,16 @@ fct_restart_container_details() {
       echo "${ALL_PODS}" | grep -E "^${pod_name}" | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
     fi
     ### The POD restartCount is now a Total of all containers restartCount, updating the query to display all containers with "restartCount > 0" sorted by highest numbers
-    CONTAINER_DETAILS=$(echo "${RESTARTED_POD_JSON}" | jq -r --arg namespace ${namespace} --arg podname ${pod_name} '.[] | select((.metadata.namespace == $namespace) and (.metadata.name == $podname)) | .status.containerStatuses | sort_by(-.restartCount,.name) | .[] | select(.restartCount >  0) | "\(.name)+\(.state | to_entries[] | .key)+\(.restartCount)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.startedAt) else (.state | to_entries[] | .value.startedAt) end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.finishedAt) else null end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.exitCode) else (.state | to_entries[] | .value.exitCode) end)+\(if (.state | to_entries[] | .value.reason == "CrashLoopBackOff" ) then (.state | to_entries[] | .value.reason) elif (.lastState != {}) then (.lastState | to_entries[] | .value.reason) else (.state | to_entries[] | .value.reason) end)"')
+    CONTAINER_DETAILS=$(echo "${RESTARTED_POD_JSON}" | jq -r --arg namespace ${namespace} --arg podname ${pod_name} --arg trunk ${POD_TRUNK} '.[] | select((.metadata.namespace == $namespace) and (.metadata.name == $podname)) | .status.containerStatuses | sort_by(-.restartCount,.name) | .[] | select(.restartCount >  0) | "\(.name)+\(.state | to_entries[] | .key)+\(.restartCount)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.startedAt) else (.state | to_entries[] | .value.startedAt) end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.finishedAt) else null end)+\(if (.lastState != {}) then (.lastState | to_entries[] | .value.exitCode) else (.state | to_entries[] | .value.exitCode) end)+\(if (.state | to_entries[] | .value.reason == "CrashLoopBackOff" ) then (.state | to_entries[] | "\(.value.reason)+\(if (.value.message != null) then .value.message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "<Empty>" end)") elif (.lastState != {}) then (.lastState | to_entries[] | "\(.value.reason)+\(if (.value.message != null) then .value.message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "<Empty>" end)") else (.state | to_entries[] | "\(.value.reason)+\(if (.value.message != null) then .value.message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "<Empty>" end)") end)"' | sed -e "s/ /_/g")
     LONGEST_NAME=$(echo "${CONTAINER_DETAILS}" | awk -F'+' 'BEGIN{longest=0}{if(length($1) > longest){longest=length($1)}}END{print longest}')
     LONGEST_NAME=${LONGEST_NAME:-0}
     if [[ ${LONGEST_NAME} -gt 32 ]]
     then
       NAMETAB=${LONGEST_NAME}
     fi
-    for line in "Container Name+state+restartCount+lastStartedAt+lastEndedAt+exitCode+reason" "--------------+-----+------------+-------------+------------+--------+--------" ${CONTAINER_DETAILS}
+    for line in "Container Name+state+restartCount+lastStartedAt+lastEndedAt+exitCode+reason+Message" "--------------+-----+------------+-------------+-----------+--------+------+-------" ${CONTAINER_DETAILS}
     do
-      printf "|-> %-${NAMETAB}s %-12s %-15s %-22s %-22s %-10s %-20s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7)" | sed -e "s/|-> \([-a-z ]*\)\([0-9]\{3,10\}\)/|-> \1${redtext}\2${resetcolor}/" -e "s/|-> \([-a-z ]*\)\([0-9]\{1,2\}\)/|-> \1${yellowtext}\2${resetcolor}/"
+      printf "|-> %-${NAMETAB}s %-12s %-15s %-22s %-22s %-10s %-20s %-${POD_TRUNK}s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7)" "$(echo ${line} | cut -d'+' -f8 | sed -e "s/_/ /g")" | sed -e "s/|-> \([-a-z ]*\)\([0-9]\{3,10\}\)/|-> \1${redtext}\2${resetcolor}/" -e "s/|-> \([-a-z ]*\)\([0-9]\{1,2\}\)/|-> \1${yellowtext}\2${resetcolor}/"
     done
     echo
   done
@@ -568,7 +568,7 @@ then
     done
   fi
   fct_title "CSV"
-  echo -e "Name | Display Name | Version | Phase\n$(${OC} get clusterserviceversion.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|" | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g"
+  echo -e "Name | Display Name | Version | Phase\n$(${OC} get clusterserviceversion.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|" | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Installing$/${yellowtext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g"
 fi
 
 ########### MCO ###########
