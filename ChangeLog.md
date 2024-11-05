@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.21
+
+### Minor updates - 1.2.21
+
+- None
+
+### Release updates - 1.2.21
+
+- (POD) Include the 'message' in addition of the 'reason' in the 'fct_restart_container_details' function.
+- (CSV) highlighting the status 'Installing'.
+
+--------
+
 ## Version 1.2.20
 
 ### Minor updates - 1.2.20
