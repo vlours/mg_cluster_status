@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.21
+# @VERSION     # 1.2.22
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -558,6 +558,12 @@ then
     fct_title "Not Updated Cluster Operators"
     echo -e "NAME|VERSION\n${CO_MISS_VERSION_OUTPUT}" | column -t -s'|' | sed -e "s/[0-9].[0-9]\{1,2\}.[0-9]\{1,2\}/${redtext}&${resetcolor}/" -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/" -e "s/\(Unknown\)/${yellowtext}\1${resetcolor}/g"
   fi
+  CO_NOT_UPGRADEABLE=$(echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '.items[] | if ((.status.conditions[] | select(.type == "Upgradeable")| .status) != "True") then "\(.metadata.name)|\(.status.conditions[] | select(.type == "Upgradeable")|"\(.status)|\(if (.reason != null) then .reason else "" end)|\(if (.message != null) then .message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "" end)")" else "" end' | column -t)
+  if [[ ! -z "${CO_NOT_UPGRADEABLE}" ]]
+  then
+    fct_title "Not Upgradeable Cluster Operators"
+    echo -e "NAME|UPGRADEABLE|REASON|MESSAGE\n${CO_NOT_UPGRADEABLE}" | sed -e "s/  */ /g" | column -t -s'|' | sed -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/" -e "s/\(False\)/${yellowtext}\1${resetcolor}/g" -e "s/\(Unknown\)/${yellowtext}\1${resetcolor}/g"
+  fi
   UNHEALTHY_OPERATORS=${UNHEALTHY_OPERATORS:-$(echo ${CO_JSON} | jq -r '.items[] | select((.status.conditions == null) or (.status.conditions[] | ((.type == "Available") and (.status == "False")) or ((.type == "Progressing") and (.status == "True")) or ((.type == "Degraded") and (.status == "True")))) | .metadata.name' 2>${STD_ERR} | sort -u)}
   if [[ ! -z ${DETAILS} ]] && [[ ! -z ${UNHEALTHY_OPERATORS} ]]
   then
@@ -742,9 +748,9 @@ then
   else
     if [[ -z ${NAMESPACE=} ]]
     then
-      echo "${ALL_PODS}" | grep -Ev "^NAME|Completed|Succeeded" | awk -F '[ /]*' '{if($3 != $4){print}}' | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
+      echo "${ALL_PODS}" | grep -Ev "Completed|Succeeded" | awk -F '[ /]*' '{if($3 != $4){print}}' | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
     else
-      echo "${ALL_PODS}" | grep -Ev "^NAME|Completed|Succeeded" | awk -F '[ /]*' '{if($2 != $3){print}}' | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
+      echo "${ALL_PODS}" | grep -Ev "Completed|Succeeded" | awk -F '[ /]*' '{if($2 != $3){print}}' | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
     fi
   fi
   fct_title "High number POD restart (>${MIN_RESTART})"
