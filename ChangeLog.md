@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.22
+
+### Minor updates - 1.2.22
+
+- None
+
+### Release updates - 1.2.22
+
+- (CO) List the COs that are not ready for update (for pro-active cases)
+- (POD) Unhidden the Titles in the 'Unsuccessful Containers in PODs' section
+
+--------
+
 ## Version 1.2.21
 
 ### Minor updates - 1.2.21
