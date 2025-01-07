@@ -12,6 +12,22 @@
 
 --------
 
+## Version 1.2.23
+
+### Minor updates - 1.2.23
+
+- None
+
+### Release updates - 1.2.23
+
+- (CO) Adding the subscription details
+- (STATIC) ETCD encryption check in detailled view
+- (ETCD) Highlight the number of 'take too long' and 'overloaded' messages from ETCD logs
+- (NODE) Include the 'matchExpressions' selection in the machineConfigPoolSelector for the 'System Reserved' checkup.
+- (CO) Update the 'Not Updated Cluster Operators' section to fix issue when the '.status.conditions' is not yet created.
+
+--------
+
 ## Version 1.2.22
 
 ### Minor updates - 1.2.22

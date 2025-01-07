@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.22
+# @VERSION     # 1.2.23
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -479,7 +479,7 @@ then
     if [[ "${KUBELETCONFIG}" != "null" ]] && [[ "${KUBELETCONFIG}" != "" ]]
     then
       fct_title_details "System Reserved"
-      echo "${KUBELETCONFIG}" | jq -r '"Name|autoSizingReserved|cpu|memory|ephemeral-resource|MCP Label(s)",(if (.items == null) then (.[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.cpu != null) then .cpu else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.memory != null) then .memory else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end) else "-" end)|\(.spec.machineConfigPoolSelector.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ])") else (.items[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.cpu != null) then .cpu else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.memory != null) then .memory else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end) else "-" end)|\(.spec.machineConfigPoolSelector.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ])") end)' | column -t -s'|'
+      echo "${KUBELETCONFIG}" | jq -r '"Name|autoSizingReserved|cpu|memory|ephemeral-resource|MCP Label(s)",(if (.items == null) then (.[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.cpu != null) then .cpu else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.memory != null) then .memory else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end) else "-" end)|\(.spec.machineConfigPoolSelector | if (.matchLabels != null) then (.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ]) else (.matchExpressions[] | "\(.operator) \(.key)") end)") else (.items[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.cpu != null) then .cpu else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.memory != null) then .memory else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end) else "-" end)|\(.spec.machineConfigPoolSelector | if (.matchLabels != null) then (.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ]) else (.matchExpressions[] | "\(.operator) \(.key)") end)") end)' | column -t -s'|'
     fi
   fi
   fct_title "CSRs"
@@ -558,7 +558,7 @@ then
     fct_title "Not Updated Cluster Operators"
     echo -e "NAME|VERSION\n${CO_MISS_VERSION_OUTPUT}" | column -t -s'|' | sed -e "s/[0-9].[0-9]\{1,2\}.[0-9]\{1,2\}/${redtext}&${resetcolor}/" -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/" -e "s/\(Unknown\)/${yellowtext}\1${resetcolor}/g"
   fi
-  CO_NOT_UPGRADEABLE=$(echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '.items[] | if ((.status.conditions[] | select(.type == "Upgradeable")| .status) != "True") then "\(.metadata.name)|\(.status.conditions[] | select(.type == "Upgradeable")|"\(.status)|\(if (.reason != null) then .reason else "" end)|\(if (.message != null) then .message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "" end)")" else "" end' | column -t)
+  CO_NOT_UPGRADEABLE=$(echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '.items[] | if (.status.conditions == null) then "\(.metadata.name)|Unknown|||" else (if ((.status.conditions[] | select(.type == "Upgradeable")| .status) != "True") then "\(.metadata.name)|\(.status.conditions[] | select(.type == "Upgradeable")|"\(.status)|\(if (.reason != null) then .reason else "" end)|\(if (.message != null) then .message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "" end)")" else "" end) end' | column -t)
   if [[ ! -z "${CO_NOT_UPGRADEABLE}" ]]
   then
     fct_title "Not Upgradeable Cluster Operators"
@@ -575,6 +575,8 @@ then
   fi
   fct_title "CSV"
   echo -e "Name | Display Name | Version | Phase\n$(${OC} get clusterserviceversion.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|" | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Installing$/${yellowtext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g"
+  fct_title "Subscriptions"
+  ${OC} get subscription -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"NAME|CHANNEL|APPROVAL|SOURCE|SOURCENAMESPACE|STATE",(.items[] | "\(.metadata.name)|\(.spec | "\(.channel)|\(.installPlanApproval)|\(.source)|\(.sourceNamespace)")|\(.status.state)")' | column -ts'|' | sed -e "s/AtLatestKnown$/${greentext}&${resetcolor}/g" -e "s/UpgradePending$/${yellowtext}&${resetcolor}/g" -e "s/Manual/${yellowtext}&${resetcolor}/g"
 fi
 
 ########### MCO ###########
@@ -593,7 +595,7 @@ then
   fi
   NODE_COUNT=$(${OC} get nodes 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}|^NAME" | wc -l | awk '{print $1}')
   NODE_MCP=$(echo ${MCP_JSON} | jq -r '[.items[] | .status.machineCount | tonumber] | add')
-  if [[ ${NODE_COUNT} != ${NODE_MCP} ]]
+  if [[ ! -z ${NODE_MCP} ]] && [[ ${NODE_COUNT} != ${NODE_MCP} ]]
   then
     fct_title_details "Incorrect MCP Nodes count"
     echo -e "Number of Nodes:|${NODE_COUNT}\nNumber of Nodes associate to MCP:|${redtext}${NODE_MCP}${resetcolor}" | column -ts '|'
@@ -799,6 +801,12 @@ then
       fi
       echo
     done
+    ETCD_ENCRYPTION=$(${OC} get apiserver cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r .spec.encryption)
+    if [[ ${ETCD_ENCRYPTION} != "null" ]]
+    then
+      fct_title "ETCD Encryption"
+      echo "${ETCD_ENCRYPTION}"
+    fi
   fi
 fi
 
@@ -820,6 +828,12 @@ then
     fct_title "ETCD member list"
     ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pod -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl member list -w table
   fi
+  fct_title "ETCD \"took to long\" & \"server is likely overloaded\" log messages"
+  for POD in $(${OC} get pod -n openshift-etcd -l app=etcd -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | cut -d'/' -f2-)
+  do
+    fct_title_details "${POD}"
+    ${OC} logs $POD -c etcd -n openshift-etcd 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | grep -E "took too long|server is likely overloaded" | sed -e "s/\(.*\)\(took too long\)\(.*\)/\2/" -e "s/\(.*\)\(server is likely overloaded\)\(.*\)/\2/" | sort | uniq -c | sed -e "s/^ *[1-9][0-9]\{2\} /${yellowtext}&${resetcolor}/" -e "s/^ *[1-9][0-9]\{3,10\} /${redtext}&${resetcolor}/"
+  done
 fi
 
 ########### ALERTS ###########
