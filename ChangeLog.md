@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.24
+
+### Minor updates - 1.2.24
+
+- None
+
+### Release updates - 1.2.24
+
+- (ALERT) Extracting more label References (name, channel, poddisruptionbudget) from the Alerts
+- (ALERT) Highlighting the 'major' severity.
+- (Operator) Add the provider in the CSV list
+
+--------
+
 ## Version 1.2.23
 
 ### Minor updates - 1.2.23
