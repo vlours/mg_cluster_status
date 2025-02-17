@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.25
+
+### Minor updates - 1.2.25
+
+- None
+
+### Release updates - 1.2.25
+
+- (ALERT) Create a new token for prometheus-ks8 when querying the prometheus API in a live cluster.
+- (MCO) Review the format of the osImageURL conflict.
+- (CONTEXT) fix the rule to retrieve the installation type and adding 'ROKS' with 'hypershift' installation type.
+
+--------
+
 ## Version 1.2.24
 
 ### Minor updates - 1.2.24

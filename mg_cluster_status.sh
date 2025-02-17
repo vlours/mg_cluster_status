@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.24
+# @VERSION     # 1.2.25
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -408,10 +408,19 @@ then
   fct_title "Clusterversion detailed"
   ${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}overrides${resetcolor}/g"
   fct_title "Type of Installation"
-  INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config openshift-install-manifests -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
+  INSTALLER_CM="openshift-install"
+  INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config ${INSTALLER_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
+  if [[ -z ${INSTALLER_INVOKER} ]]
+  then
+    INSTALLER_CM="openshift-install-manifests"
+    INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config ${INSTALLER_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
+  fi
   case ${INSTALLER_INVOKER} in
-    "hypershift","agent-installer","infrastructure-operator"|"assisted-installer"|"hive")
+    "agent-installer"|"infrastructure-operator"|"assisted-installer"|"hive")
       INSTALL_TYPE=${INSTALLER_INVOKER}
+      ;;
+    "hypershift"|"ROKS")
+      INSTALL_TYPE="hypershift"
       ;;
     "null")
       INSTALL_TYPE="unknown"
@@ -420,7 +429,12 @@ then
       INSTALL_TYPE="ipi"
       ;;
     *)
-      INSTALL_TYPE="upi"
+      if [[ ${INSTALLER_CM} == "openshift-install" ]]
+      then
+        INSTALL_TYPE="ipi"
+      else
+        INSTALL_TYPE="upi"
+      fi
       ;;
   esac
   echo "Install Type: ${INSTALL_TYPE}"
@@ -611,15 +625,15 @@ then
   echo ${MC_JSON} | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10 | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
   if [[ ! -z ${DETAILS} ]]
   then
-    MC_JSON_conflicts=$(echo ${MC_JSON} | jq -r '.items[] | select((.spec.osImageURL != null) and (.spec.osImageURL != "")) | {name: .metadata.name, osImageURL: .spec.osImageURL}')
+    MC_JSON_conflicts=$(echo ${MC_JSON} | jq -r '.items[] | select((.spec.osImageURL != null) and (.spec.osImageURL != "") and (.metadata.name | startswith("rendered-") | not)) | {name: .metadata.name, osImageURL: .spec.osImageURL}')
     fct_title "osImageURL conflicts"
     for mcp in $(echo ${MCP_JSON} | jq -r '.items[].metadata.name'); do
-      printf "Checking MCP ${mcp}:|"
+      printf "Checking MCP ${mcp}: "
       for mc in $(echo ${MCP_JSON} | jq -r --arg mcp ${mcp} '.items[] | select(.metadata.name == $mcp) | .status.configuration.source[].name'); do
         echo ${MC_JSON_conflicts} | jq -r --arg mc ${mc} 'select(.name == $mc) | {name: .name, osImageURL: .osImageURL} '
-      done | jq -rs 'group_by(.osImageURL) | if length > 1 then "conflicts detected", . else "all osImageURLs match|(\(.[0] | .[0].osImageURL))" end' | sed -e "s/.*/${yellowtext}&${resetcolor}/" -e "s/conflicts detected/${redtext}&${resetcolor}/" -e "s/all osImageURLs match/${greentext}&${resetcolor}/"
+      done | jq -rs 'group_by(.osImageURL) | if length > 1 then "conflicts detected", . else "all osImageURLs match (\(.[0] | .[0].osImageURL))" end' | sed -e "s/.*/${yellowtext}&${resetcolor}/" -e "s/conflicts detected/${redtext}&${resetcolor}/" -e "s/all osImageURLs match/${greentext}&${resetcolor}/"
       echo "-------------------"
-    done | column -ts'|'
+    done
   fi
   fct_title "MCP state & versions"
   ${OC} get machineconfigpool.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"MCP Name | Current Rendered | Desired Rendered | Paused | unavailableMachineCount | maxUnavailable",(.items[] | "\(.metadata.name) | \(if (.spec.configuration.name != .status.configuration.name) then "R_\(.status.configuration.name)" else "G_\(.status.configuration.name)" end) | \(.spec.configuration.name) | \(if (.spec.paused != null) then (if(.spec.paused == true) then "Y_\(.spec.paused)" else "G_\(.spec.paused)" end) else "G_false" end) | \(if (.spec.maxUnavailable != null) then "\(if(.status.unavailableMachineCount >= .spec.maxUnavailable) then "R_\(.status.unavailableMachineCount)" else "G_\(.status.unavailableMachineCount)" end) | \(.spec.maxUnavailable)" else "\(if(.status.unavailableMachineCount >= 1) then "R_\(.status.unavailableMachineCount)" else "G_\(.status.unavailableMachineCount)" end) | 1" end )")' | column -t -s'|' | sed -e "s/ [1-9]\{1,5\}[0-9][%]*$/${yellowtext}&${resetcolor}/" -e "s/ true /${redtext}&${resetcolor}/" -e "s/master/${cyantext}&${resetcolor}/" -e "s/worker/${purpletext}&${resetcolor}/" -e "s/infra/${yellowtext}&${resetcolor}/" -e "s/R_\([0-9a-z\-]*\)/${redtext}\1  ${resetcolor}/g" -e "s/G_\([0-9a-z\-]*\)/${greentext}\1  ${resetcolor}/g" -e "s/Y_\([0-9a-z\-]*\)/${yellowtext}\1  ${resetcolor}/g"
@@ -844,7 +858,13 @@ then
   then
     RULES=$(${OC} prometheus alertrule -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
   else
-    TOKEN=$(${OC} get secret -n openshift-monitoring -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.metadata.name | test("prometheus-k8s-token")) and (.metadata.annotations."kubernetes.io/created-by" != null)) | .data.token' | base64 -d)
+    # Replacing the long life token by generated tokens
+    # TOKEN=$(${OC} get secret -n openshift-monitoring -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.metadata.name | test("prometheus-k8s-token")) and (.metadata.annotations."kubernetes.io/created-by" != null)) | .data.token' | base64 -d)
+    TOKEN=$(${OC} create token prometheus-k8s -n openshift-monitoring 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+    if [[ -z ${TOKEN} ]]
+    then
+      echo "Unable to generate a new token for prometheus-ks8 SA"
+    fi
     PROMETHEUS_URL=$(${OC} get route.route.openshift.io -n openshift-monitoring prometheus-k8s -o jsonpath="{.status.ingress[0].host}" 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" )
     if [[ ! -z ${TOKEN} ]] && [[ ! -z ${PROMETHEUS_URL} ]]
     then
