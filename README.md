@@ -1,28 +1,32 @@
 # mg_cluster_status
 
-This bash script will provide the overall status of the must-gather
+This bash script will provide the overall cluster status from live `oc` commands or from a `must-gather`.
 
 ## Installation and updates
 
 ### Requirements
 
-The script use the command `omc` (OpenShift Must-Gather Client)
+For live analysis, the `oc` command should be available and logged into the desired cluster.
+
+For the Must-gather analysis, the script use the command `omc` (OpenShift Must-Gather Client)
 This command should be installed and available in your PATH on your laptop/server. It's available for download from github <https://github.com/gmeghnag/omc/#readme>
+
+The variable `OC` needs to be set accordingly to the context.
 
 ### Installation
 
 * pull the repository
 
-```text
-git clone https://github.com/vlours/mg_cluster_status
-```
+  ```text
+  git clone https://github.com/vlours/mg_cluster_status
+  ```
 
 * Create the alias `mg_check` for `mg_cluster_status.sh` in your .bashrc profile (_optional_)
 
-```bash
-echo -e "\nalias mg_check=${PWD}/mg_cluster_status/mg_cluster_status.sh" >> ${HOME}/.bashrc
-source ${HOME}/.bashrc
-```
+  ```bash
+  echo -e "\nalias mg_check=${PWD}/mg_cluster_status/mg_cluster_status.sh" >> ${HOME}/.bashrc
+  source ${HOME}/.bashrc
+  ```
 
 ### Update to latest version (_based on the alias_)
 
@@ -44,17 +48,34 @@ sed -i -e "/alias mg_check/d" ${HOME}/.bashrc
 
 ### Basic Usage
 
-* Set the Must-gather to use in `omc` and run the script
+1. Must-gather analysis
 
-```bash
-omc use <must-gather-folder>
-```
+    * Set the Must-gather to use in `omc` and run the script
 
-* Run the script with the desired options (_without any parameter the script will run all checks_)
+      ```bash
+      omc use <must-gather-folder>
+      ```
 
-```bash
-mg_check 
-```
+    * Run the script with the desired options (_without any parameter the script will run all checks_)
+
+      ```bash
+      mg_check
+      ```
+
+2. Live cluster analysis
+
+    * login to the cluster and set the `OC` variable
+
+      ```bash
+      oc login URI:6443 -u <username>
+      export OC=$(which oc | awk '{print $NF}')
+      ```
+
+    * Run the script with the desired options (_without any parameter the script will run all checks_)
+
+      ```bash
+      mg_check
+      ```
 
 ### Advanced Usage
 

@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.26
+
+### Minor updates - 1.2.26
+
+- None
+
+### Release updates - 1.2.26
+
+- (OPERATOR) sort the subscriptions by name to match the order used in CSVs.
+- (ALERTS) Highlighting the 'ControlPlane' and 'Master' alerts.
+- (ETCD) Fixing typo.
+- (README) Update the content and fix the format
+
+--------
+
 ## Version 1.2.25
 
 ### Minor updates - 1.2.25
