@@ -20,7 +20,7 @@
 
 ### Release updates - 1.2.27
 
-- (NODE) Displaying the "OVN subnet" in the detailled nodes view.
+- (NODE) Displaying the 'OVN subnet' in the detailled nodes view.
 - (ALL) Fix issues to enforce 'oc get [resources]' to use long names.
 - (STATIC) update the number of digit for revision in 'sed'
 - (HELP) Adding a 'type' column in the detailled help options to describe the variables.
