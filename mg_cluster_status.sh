@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.26
+# @VERSION     # 1.2.27
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -44,7 +44,8 @@ fct_help(){
   if [[ ! -z ${DETAILS} ]] && [[ ! -z ${HELP} ]]
   then
     echo -e "\nCustomizable variables before running the script (Optional):"
-    EXPORT_TAB=42
+    EXPORT_TAB=33
+    TYPE_TAB=12
     COMMENT_TAB=92
     DEFAULT_TAB=10
     CURRENT_TAB=10
@@ -56,31 +57,31 @@ fct_help(){
         CURRENT_TAB=${OC_LENGTH}
       fi
     fi
-    printf "|%-${EXPORT_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
-    printf "|%-${EXPORT_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "Options" "Description" "[Default]" "[Current]"
-    printf "|%-${EXPORT_TAB}s-|-%-${COMMENT_TAB}s-|-%-${DEFAULT_TAB}s-|-%-${CURRENT_TAB}s|\n" |tr \  '-'
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export OC=[omc|omg|oc]" "#Change the must-gather tool (use 'oc' to run the script against live cluster)" "[${DEFAULT_OC}]" "$(if [[ ! -z ${OC} ]] && [[ ${OC} != ${DEFAULT_OC} ]]; then echo "[${OC}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export ALERT_TRUNK=<interger>" "#Change the length of the Alert Descriptions" "[${DEFAULT_TRUNK}]" "$(if [[ ! -z ${ALERT_TRUNK} ]] && [[ ${ALERT_TRUNK} != ${DEFAULT_TRUNK} ]]; then echo "[${ALERT_TRUNK}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export CONDITION_TRUNK=<interger>" "#Change the length of the Operator Message in 'oc get co'" "[${DEFAULT_CONDITION_TRUNK}]" "$(if [[ ! -z ${CONDITION_TRUNK} ]] && [[ ${CONDITION_TRUNK} != ${DEFAULT_CONDITION_TRUNK} ]]; then echo "[${CONDITION_TRUNK}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export POD_TRUNK=<interger>" "#Change the length of the POD Message in 'oc get pod'" "[${DEFAULT_TRUNK}]" "$(if [[ ! -z ${POD_TRUNK} ]] && [[ ${POD_TRUNK} != ${DEFAULT_TRUNK} ]]; then echo "[${POD_TRUNK}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export POD_WIDE=<boolean>" "#Enable/Disable the '-o wide' option in the command 'oc get pod'" "[${DEFAULT_WIDE}]" "$(if [[ ! -z ${POD_WIDE} ]] && [[ ${POD_WIDE} != ${DEFAULT_WIDE} ]]; then echo "[${POD_WIDE}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export MIN_RESTART=<integer>" "#Change the minimal number of restart when checking the POD restarts" "[${DEFAULT_MIN_RESTART}]" "$(if [[ ! -z ${MIN_RESTART} ]] && [[ ${MIN_RESTART} != ${DEFAULT_MIN_RESTART} ]]; then echo "[${MIN_RESTART}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export NODE_TRANSITION_DAYS=<interger>" "#Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC" "[${DEFAULT_NODE_TRANSITION_DAYS}]" "$(if [[ ! -z ${NODE_TRANSITION_DAYS} ]] && [[ ${NODE_TRANSITION_DAYS} != ${DEFAULT_NODE_TRANSITION_DAYS} ]]; then echo "[${NODE_TRANSITION_DAYS}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export OPERATOR_TRANSITION_DAYS=<interger>" "#Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators" "[${DEFAULT_OPERATOR_TRANSITION_DAYS}]" "$(if [[ ! -z ${OPERATOR_TRANSITION_DAYS} ]] && [[ ${OPERATOR_TRANSITION_DAYS} != ${DEFAULT_OPERATOR_TRANSITION_DAYS} ]]; then echo "[${OPERATOR_TRANSITION_DAYS}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export TAIL_LOG=<integer>" "#Change the number of lines displayed from logs ('tail')" "[${DEFAULT_TAIL_LOG}]" "$(if [[ ! -z ${TAIL_LOG} ]] && [[ ${TAIL_LOG} != ${DEFAULT_TAIL_LOG} ]]; then echo "[${TAIL_LOG}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export graytext=<color_code>" "#Replace the gray color used in the script" "[${DEFAULT_graytext}]" "$(if [[ ! -z "${graytext}" ]] && [[ "${graytext}" != "${DEFAULT_graytext}" ]]; then echo "[${graytext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export redtext=<color_code>" "#Replace the red color used in the script" "[${DEFAULT_redtext}]" "$(if [[ ! -z "${redtext}" ]] && [[ "${redtext}" != "${DEFAULT_redtext}" ]]; then echo "[${redtext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export greentext=<color_code>" "#Replace the green color used in the script" "[${DEFAULT_greentext}]" "$(if [[ ! -z "${greentext}" ]] && [[ "${greentext}" != "${DEFAULT_greentext}" ]]; then echo "[${greentext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export yellowtext=<color_code>" "#Replace the yellow color used in the script" "[${DEFAULT_yellowtext}]" "$(if [[ ! -z "${yellowtext}" ]] && [[ "${yellowtext}" != "${DEFAULT_yellowtext}" ]]; then echo "[${yellowtext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export bluetext=<color_code>" "#Replace the blue color used in the script" "[${DEFAULT_bluetext}]" "$(if [[ ! -z "${bluetext}" ]] && [[ "${bluetext}" != "${DEFAULT_bluetext}" ]]; then echo "[${bluetext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export purpletext=<color_code>" "#Replace the purple color used in the script" "[${DEFAULT_purpletext}]" "$(if [[ ! -z "${purpletext}" ]] && [[ "${purpletext}" != "${DEFAULT_purpletext}" ]]; then echo "[${purpletext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export cyantext=<color_code>" "#Replace the cyan color used in the script" "[${DEFAULT_cyantext}]" "$(if [[ ! -z "${cyantext}" ]] && [[ "${cyantext}" != "${DEFAULT_cyantext}" ]]; then echo "[${cyantext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export whitetext=<color_code>" "#Replace the white color used in the script" "[${DEFAULT_whitetext}]" "$(if [[ ! -z "${whitetext}" ]] && [[ "${whitetext}" != "${DEFAULT_whitetext}" ]]; then echo "[${whitetext}]"; fi)"
-    printf "|${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export resetcolor=<color_code>" "#Replace the color used to rest colors in the script" "[${DEFAULT_resetcolor}]" "$(if [[ ! -z "${resetcolor}" ]] && [[ "${resetcolor}" != "${DEFAULT_resetcolor}" ]]; then echo "[${resetcolor}]"; fi)"
-    printf "|%-${EXPORT_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
+    printf "|-%-${EXPORT_TAB}s---%-${TYPE_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
+    printf "| %-${EXPORT_TAB}s | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | %-${DEFAULT_TAB}s | %-${CURRENT_TAB}s|\n" "Options" "Type" "Description" "[Default]" "[Current]"
+    printf "|-%-${EXPORT_TAB}s-|-%-${TYPE_TAB}s-|-%-${COMMENT_TAB}s-|-%-${DEFAULT_TAB}s-|-%-${CURRENT_TAB}s|\n" |tr \  '-'
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export OC=" "<executable>" "#Change the must-gather tool (use 'oc' to run the script against live cluster)" "[${DEFAULT_OC}]" "$(if [[ ! -z ${OC} ]] && [[ ${OC} != ${DEFAULT_OC} ]]; then echo "[${OC}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export ALERT_TRUNK=" "<interger>" "#Change the length of the Alert Descriptions" "[${DEFAULT_TRUNK}]" "$(if [[ ! -z ${ALERT_TRUNK} ]] && [[ ${ALERT_TRUNK} != ${DEFAULT_TRUNK} ]]; then echo "[${ALERT_TRUNK}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export CONDITION_TRUNK=" "<interger>" "#Change the length of the Operator Message in 'oc get co'" "[${DEFAULT_CONDITION_TRUNK}]" "$(if [[ ! -z ${CONDITION_TRUNK} ]] && [[ ${CONDITION_TRUNK} != ${DEFAULT_CONDITION_TRUNK} ]]; then echo "[${CONDITION_TRUNK}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export POD_TRUNK=" "<interger>" "#Change the length of the POD Message in 'oc get pod'" "[${DEFAULT_TRUNK}]" "$(if [[ ! -z ${POD_TRUNK} ]] && [[ ${POD_TRUNK} != ${DEFAULT_TRUNK} ]]; then echo "[${POD_TRUNK}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export POD_WIDE=" "<boolean>" "#Enable/Disable the '-o wide' option in the command 'oc get pod'" "[${DEFAULT_WIDE}]" "$(if [[ ! -z ${POD_WIDE} ]] && [[ ${POD_WIDE} != ${DEFAULT_WIDE} ]]; then echo "[${POD_WIDE}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export MIN_RESTART=" "<integer>" "#Change the minimal number of restart when checking the POD restarts" "[${DEFAULT_MIN_RESTART}]" "$(if [[ ! -z ${MIN_RESTART} ]] && [[ ${MIN_RESTART} != ${DEFAULT_MIN_RESTART} ]]; then echo "[${MIN_RESTART}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export NODE_TRANSITION_DAYS=" "<interger>" "#Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC" "[${DEFAULT_NODE_TRANSITION_DAYS}]" "$(if [[ ! -z ${NODE_TRANSITION_DAYS} ]] && [[ ${NODE_TRANSITION_DAYS} != ${DEFAULT_NODE_TRANSITION_DAYS} ]]; then echo "[${NODE_TRANSITION_DAYS}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export OPERATOR_TRANSITION_DAYS=" "<interger>" "#Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators" "[${DEFAULT_OPERATOR_TRANSITION_DAYS}]" "$(if [[ ! -z ${OPERATOR_TRANSITION_DAYS} ]] && [[ ${OPERATOR_TRANSITION_DAYS} != ${DEFAULT_OPERATOR_TRANSITION_DAYS} ]]; then echo "[${OPERATOR_TRANSITION_DAYS}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export TAIL_LOG=" "<integer>" "#Change the number of lines displayed from logs ('tail')" "[${DEFAULT_TAIL_LOG}]" "$(if [[ ! -z ${TAIL_LOG} ]] && [[ ${TAIL_LOG} != ${DEFAULT_TAIL_LOG} ]]; then echo "[${TAIL_LOG}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export graytext=" "<color_code>" "#Replace the gray color used in the script" "[${DEFAULT_graytext}]" "$(if [[ ! -z "${graytext}" ]] && [[ "${graytext}" != "${DEFAULT_graytext}" ]]; then echo "[${graytext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export redtext=" "<color_code>" "#Replace the red color used in the script" "[${DEFAULT_redtext}]" "$(if [[ ! -z "${redtext}" ]] && [[ "${redtext}" != "${DEFAULT_redtext}" ]]; then echo "[${redtext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export greentext=" "<color_code>" "#Replace the green color used in the script" "[${DEFAULT_greentext}]" "$(if [[ ! -z "${greentext}" ]] && [[ "${greentext}" != "${DEFAULT_greentext}" ]]; then echo "[${greentext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export yellowtext=" "<color_code>" "#Replace the yellow color used in the script" "[${DEFAULT_yellowtext}]" "$(if [[ ! -z "${yellowtext}" ]] && [[ "${yellowtext}" != "${DEFAULT_yellowtext}" ]]; then echo "[${yellowtext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export bluetext=" "<color_code>" "#Replace the blue color used in the script" "[${DEFAULT_bluetext}]" "$(if [[ ! -z "${bluetext}" ]] && [[ "${bluetext}" != "${DEFAULT_bluetext}" ]]; then echo "[${bluetext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export purpletext=" "<color_code>" "#Replace the purple color used in the script" "[${DEFAULT_purpletext}]" "$(if [[ ! -z "${purpletext}" ]] && [[ "${purpletext}" != "${DEFAULT_purpletext}" ]]; then echo "[${purpletext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export cyantext=" "<color_code>" "#Replace the cyan color used in the script" "[${DEFAULT_cyantext}]" "$(if [[ ! -z "${cyantext}" ]] && [[ "${cyantext}" != "${DEFAULT_cyantext}" ]]; then echo "[${cyantext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export whitetext=" "<color_code>" "#Replace the white color used in the script" "[${DEFAULT_whitetext}]" "$(if [[ ! -z "${whitetext}" ]] && [[ "${whitetext}" != "${DEFAULT_whitetext}" ]]; then echo "[${whitetext}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export resetcolor=" "<color_code>" "#Replace the color used to rest colors in the script" "[${DEFAULT_resetcolor}]" "$(if [[ ! -z "${resetcolor}" ]] && [[ "${resetcolor}" != "${DEFAULT_resetcolor}" ]]; then echo "[${resetcolor}]"; fi)"
+    printf "|-%-${EXPORT_TAB}s---%-${TYPE_TAB}s---%-${COMMENT_TAB}s---%-${DEFAULT_TAB}s---%-${CURRENT_TAB}s|\n" |tr \  '-'
     MAX_RANDOM=1
   else
-    echo -e "\nYou can use the '-d' option with the '-h' to display the custommizable variables"
+    echo -e "\nYou can use the '-d' option with the '-h' to display the customisable variables"
   fi
   fct_version
   exit 0
@@ -137,7 +138,7 @@ fct_title_details() {
 }
 
 fct_unsuccessful_pod_details() {
-  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   Pending_PODs=$(echo "${ALL_PODS_JSON}" | jq -r --arg trunk ${POD_TRUNK} '.items[] | select((.metadata.deletionTimestamp == null) and (.status.phase == "Pending")) | .metadata.namespace + "/" + .metadata.name + "|" + .metadata.creationTimestamp + "|R-" + .status.phase + "-R|" + (if ((.status.conditions[] | select(.type == "PodScheduled") | .message) != null) then (.status.conditions[] | select(.type == "PodScheduled") | (.message[0:($trunk|tonumber)])) | sub("\n";" ";"g") elif ((.status.conditions[] | select(.type == "ContainersReady") | .message) != null) then (.status.conditions[] | select(.type == "ContainersReady") | (.message[0:($trunk|tonumber)] | sub("\n";" ";"g"))) else "null" end)')
   if [[ ! -z ${Pending_PODs} ]]
   then
@@ -161,11 +162,11 @@ fct_unsuccessful_pod_details() {
 fct_unsuccessful_container_details() {
   if [[ -z ${NAMESPACE=} ]]
   then
-    ALL_PODS=${ALL_PODS:-$(${OC} get pod -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    ALL_PODS=${ALL_PODS:-$(${OC} get pods -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   else
     ALL_PODS=$(${OC} get pods -n ${NAMESPACE} ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
   fi
-  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   UNCOMPLETE_POD_JSON=$(echo "${ALL_PODS_JSON}" | jq -r '[.items[] | select((.status.phase != "Succeeded") and ((.status.containerStatuses != null) and (.status.containerStatuses[] | select(.state | to_entries[] | (.key == "terminated") and (.value.reason == "Completed") | not))) and ((.status.containerStatuses == null) or ([(.status.containerStatuses[].state | if(to_entries[]| .key == "running") then 1 else 0 end)] | add) != (.spec.containers | length)))] | unique')
   UNCOMPLETE_POD_LIST=$(echo "${UNCOMPLETE_POD_JSON}" | jq -r '.[].metadata | " \(.namespace)/\(.name)"')
   echo "${ALL_PODS}" | grep -E "^NAME"
@@ -196,11 +197,11 @@ fct_unsuccessful_container_details() {
 fct_restart_container_details() {
   if [[ -z ${NAMESPACE=} ]]
   then
-    ALL_PODS=${ALL_PODS:-$(${OC} get pod -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    ALL_PODS=${ALL_PODS:-$(${OC} get pods -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   else
     ALL_PODS=$(${OC} get pods -n ${NAMESPACE} ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
   fi
-  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   RESTARTED_POD_JSON=$(echo "${ALL_PODS_JSON}" | jq -r --arg min_restart ${MIN_RESTART} '[.items[] | select((.status.containerStatuses != null) and (([.status.containerStatuses[].restartCount | tonumber] | add) > ($min_restart | tonumber))) ] | unique')
   RESTART_POD_LIST=$(echo "${RESTARTED_POD_JSON}" | jq -r '.[].metadata | "\(.namespace)/\(.name)"')
   echo "${ALL_PODS}" | grep -E "^NAME"
@@ -440,7 +441,7 @@ then
   echo "Install Type: ${INSTALL_TYPE}"
   fct_title "Infrastructure"
   ${OC} get infrastructures.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .status
-  ALL_PODS=${ALL_PODS:-$(${OC} get pod -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+  ALL_PODS=${ALL_PODS:-$(${OC} get pods -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   NB_KEEPALIVE_PODS=$(echo "${ALL_PODS}" | awk 'BEGIN{count=0};{if(($1 ~ "openshift-[-a-z]*-infra") && ($2 ~ "keepalived")){count++}};END{print count}')
   if [[ ${NB_KEEPALIVE_PODS} -gt 0 ]]
   then
@@ -472,7 +473,7 @@ then
   if [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Node details"
-    echo "${NODE_JSON}" | jq -r '" |CPU| |Memory| |ephemeral-storage|\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(.status.allocatable.memory)|\(.status.capacity."ephemeral-storage")|\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki|\(.status.capacity.pods)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed  -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
+    echo "${NODE_JSON}" | jq -r '" |CPU| |Memory| |ephemeral-storage| |POD|OVN|OTHERS|\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|Node Subnet|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(.status.allocatable.memory)|\(.status.capacity."ephemeral-storage")|\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki|\(.status.capacity.pods)|\(.metadata.annotations | if (."k8s.ovn.org/node-subnets" != null) then ."k8s.ovn.org/node-subnets" | match("([^=]*):(.*)}") | .captures | .[1].string else "N/A" end)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed  -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
     fct_title_details "Node Conditions (yellow = transition within last ${NODE_TRANSITION_DAYS} days)"
     GAWK_PATH=${GAWK_PATH:-$(which gawk 2>${STD_ERR})}
     if [[ -z ${GAWK_PATH} ]]
@@ -590,7 +591,7 @@ then
   fct_title "CSV"
   echo -e "Name | Display Name | Provider | Version | Phase\n$(${OC} get clusterserviceversion.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(if (.spec.provider.name != null) then .spec.provider.name else "N/A" end) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|" | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Installing$/${yellowtext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g"
   fct_title "Subscriptions"
-  ${OC} get subscription -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"NAME|CHANNEL|APPROVAL|SOURCE|SOURCENAMESPACE|STATE",(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name)|\(.spec | "\(.channel)|\(.installPlanApproval)|\(.source)|\(.sourceNamespace)")|\(.status.state)")' | column -ts'|' | sed -e "s/AtLatestKnown$/${greentext}&${resetcolor}/g" -e "s/UpgradePending$/${yellowtext}&${resetcolor}/g" -e "s/Manual/${yellowtext}&${resetcolor}/g"
+  ${OC} get subscriptions.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"NAME|CHANNEL|APPROVAL|SOURCE|SOURCENAMESPACE|STATE",(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name)|\(.spec | "\(.channel)|\(.installPlanApproval)|\(.source)|\(.sourceNamespace)")|\(.status.state)")' | column -ts'|' | sed -e "s/AtLatestKnown$/${greentext}&${resetcolor}/g" -e "s/UpgradePending$/${yellowtext}&${resetcolor}/g" -e "s/Manual/${yellowtext}&${resetcolor}/g"
 fi
 
 ########### MCO ###########
@@ -618,7 +619,7 @@ then
   if [[ ! -z "${PROCESSING_MCP}" ]] && [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Processing MCP - machine-config-controller log"
-    ${OC} logs -n openshift-machine-config-operator $(${OC} get pod -n openshift-machine-config-operator -l k8s-app=machine-config-controller -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}") -c machine-config-controller | grep -Ev "template_controller.go" | tail -${TAIL_LOG} | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
+    ${OC} logs -n openshift-machine-config-operator $(${OC} get pods -n openshift-machine-config-operator -l k8s-app=machine-config-controller -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}") -c machine-config-controller | grep -Ev "template_controller.go" | tail -${TAIL_LOG} | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
   fi
   fct_title "Latest MachineConfigs"
   MC_JSON=$(${OC} get machineconfig.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
@@ -643,7 +644,7 @@ then
   if [[ ! -z "${DEGRADED_NODES}" ]] && [[ ! -z ${DETAILS} ]]
   then
     fct_title "Degraded nodes - machine-config-daemon log"
-    MCO_PODS=${MCO_PODS:-$(${OC} get pod -n openshift-machine-config-operator -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    MCO_PODS=${MCO_PODS:-$(${OC} get pods -n openshift-machine-config-operator -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
     for DEGRADED_NODE in ${DEGRADED_NODES}
     do
       pod_name=$(echo "${MCO_PODS}" | jq -r --arg degraded_node ${DEGRADED_NODE} '.items[] | select((.spec.nodeName == $degraded_node) and (.metadata.labels."k8s-app" == "machine-config-daemon")) | .metadata.name')
@@ -700,9 +701,9 @@ then
         fct_title "SCC - PODs running in SCCs newer than ${NODE_TRANSITION_DAYS} days or with high priority (>=10)"
         if [[ -z ${NAMESPACE} ]]
         then
-          ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+          ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
         else
-          ALL_PODS_JSON=$(${OC} get pod -n ${NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+          ALL_PODS_JSON=$(${OC} get pods -n ${NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
         fi
         for POLICY in ${POLICIES}
         do
@@ -728,7 +729,7 @@ then
   fi
   if [[ -z ${NAMESPACE=} ]]
   then
-    ALL_PODS=${ALL_PODS:-$(${OC} get pod -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    ALL_PODS=${ALL_PODS:-$(${OC} get pods -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   else
     ALL_PODS=$(${OC} get pods -n ${NAMESPACE} ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
   fi
@@ -736,9 +737,9 @@ then
   then
     if [[ -z ${NAMESPACE=} ]]
     then
-      ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+      ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
     else
-      ALL_PODS_JSON=$(${OC} get pod -n ${NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+      ALL_PODS_JSON=$(${OC} get pods -n ${NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
     fi
   fi
 
@@ -790,7 +791,7 @@ then
   fct_title "Revision Status"
   for static in etcd kubeapiserver kubecontrollermanager kubescheduler
   do
-    static_revision=$(${OC} get ${static}.operator.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.status.conditions[] | select(((.type == "NodeInstallerProgressing") or (.type == "APIServerDeploymentProgressing")) and (.message != null)) | ": \(.message | sub("\n";" ";"g"))"' | sed -e "s/[0-9] nodes are at revision [0-9]\{1,3\}/${greentext}&${resetcolor}/" -e "s/; \([0-9] nodes are at revision [0-9]\{1,3\}\)/; ${yellowtext}\1${resetcolor}/" -e "s/; \(0 nodes have achieved new revision [0-9]\{1,3\}\)/; ${redtext}\1${resetcolor}/")
+    static_revision=$(${OC} get ${static}.operator.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.status.conditions[] | select(((.type == "NodeInstallerProgressing") or (.type == "APIServerDeploymentProgressing")) and (.message != null)) | ": \(.message | sub("\n";" ";"g"))"' | sed -e "s/[0-9] nodes are at revision [0-9]\{1,6\}/${greentext}&${resetcolor}/" -e "s/; \([0-9] nodes are at revision [0-9]\{1,6\}\)/; ${yellowtext}\1${resetcolor}/" -e "s/; \(0 nodes have achieved new revision [0-9]\{1,3\}\)/; ${redtext}\1${resetcolor}/")
     if [[ ! -z ${static_revision} ]]
     then
       printf "${static}|${static_revision}\n"
@@ -803,9 +804,9 @@ then
     do
       fct_title_details "${namespace}"
       echo "--- Config Maps ---"
-      ${OC} get configmap -n ${namespace} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -s '|' -t | tail -5
+      ${OC} get configmaps -n ${namespace} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -s '|' -t | tail -5
       echo "--- Installer Pods (up to 10) ---"
-      ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pod -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+      ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
       INSTALLER_DETAILS=$(echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${namespace} '.items | sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | select((.metadata.namespace == $namespace) and (.metadata.labels.app == "installer")) | "\(.metadata.name)|\(.status.containerStatuses[0]|"\(.name)|\(.restartCount)|\(.state | .[] |  "\(.startedAt)|\(.finishedAt)|\(.reason)")")"'| tail -10)
       if [[ -z ${INSTALLER_DETAILS} ]]
       then
@@ -815,7 +816,7 @@ then
       fi
       echo
     done
-    ETCD_ENCRYPTION=$(${OC} get apiserver cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r .spec.encryption)
+    ETCD_ENCRYPTION=$(${OC} get apiserver.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r .spec.encryption)
     if [[ ${ETCD_ENCRYPTION} != "null" ]]
     then
       fct_title "ETCD Encryption"
@@ -836,14 +837,14 @@ then
     ${OC} etcd status 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [3-9][0-9]% /${yellowtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
   else
     # Display ETCD status when running the script against a cluster using 'oc' command
-    ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pod -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl endpoint health -w table 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [2-9][0-9].*ms /${yellowtext}&${resetcolor}/" -e "s/ [1-9][0-9]\{2,9\}.*ms /${redtext}&${resetcolor}/" -e "s/ false /${redtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
+    ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl endpoint health -w table 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [2-9][0-9].*ms /${yellowtext}&${resetcolor}/" -e "s/ [1-9][0-9]\{2,9\}.*ms /${redtext}&${resetcolor}/" -e "s/ false /${redtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
     fct_title "ETCD status"
-    ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pod -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl endpoint status -w table 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [3-9][0-9]% /${yellowtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
+    ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl endpoint status -w table 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [3-9][0-9]% /${yellowtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
     fct_title "ETCD member list"
-    ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pod -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl member list -w table
+    ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl member list -w table
   fi
   fct_title "ETCD \"took too long\" & \"server is likely overloaded\" log messages"
-  for POD in $(${OC} get pod -n openshift-etcd -l app=etcd -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | cut -d'/' -f2-)
+  for POD in $(${OC} get pods -n openshift-etcd -l app=etcd -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | cut -d'/' -f2-)
   do
     fct_title_details "${POD}"
     ${OC} logs $POD -c etcd -n openshift-etcd 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | grep -E "took too long|server is likely overloaded" | sed -e "s/\(.*\)\(took too long\)\(.*\)/\2/" -e "s/\(.*\)\(server is likely overloaded\)\(.*\)/\2/" | sort | uniq -c | sed -e "s/^ *[1-9][0-9]\{2\} /${yellowtext}&${resetcolor}/" -e "s/^ *[1-9][0-9]\{3,10\} /${redtext}&${resetcolor}/"
@@ -859,7 +860,7 @@ then
     RULES=$(${OC} prometheus alertrule -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
   else
     # Replacing the long life token by generated tokens
-    # TOKEN=$(${OC} get secret -n openshift-monitoring -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.metadata.name | test("prometheus-k8s-token")) and (.metadata.annotations."kubernetes.io/created-by" != null)) | .data.token' | base64 -d)
+    # TOKEN=$(${OC} get secrets -n openshift-monitoring -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.metadata.name | test("prometheus-k8s-token")) and (.metadata.annotations."kubernetes.io/created-by" != null)) | .data.token' | base64 -d)
     TOKEN=$(${OC} create token prometheus-k8s -n openshift-monitoring 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
     if [[ -z ${TOKEN} ]]
     then
@@ -876,7 +877,7 @@ then
     fct_title "firing Alerts"
     echo ${RULES} | jq -r '"RULE|STATE|AGE|ALERTS|ACTIVE SINCE",(if .data != null then (.data[] | select(.state == "firing") | "\(.name)|\(.state)|N/A|\(.alerts | length)|\("\(.alerts | sort_by(.activeAt) | .[0].activeAt[0:19])Z"|fromdate|strftime("%d %b %y %H:%M UTC"))") else "" end)' | column -s'|' -t | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/ [5-9]  /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{2,5\}  /${redtext}&${resetcolor}/"
     fct_title "Firing Alerts rules details"
-    echo ${RULES} | jq -r --arg trunk ${ALERT_TRUNK} '"ALERTNAME|LAST ACTIVE|NAMESPACE|OBJECT REFERENCE|SEVERITY|DESCRIPTION|",if .data != null then (.data[] | select(.state == "firing") | .alerts | sort_by(.activeAt) | .[] | "\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node elif (.labels.name != null) then .labels.name elif (.labels.channel != null) then .labels.channel elif (.labels.poddisruptionbudget != null) then .labels.poddisruptionbudget else .labels.service end)|\(.labels.severity)|\(if (.annotations != null) then (if (.annotations.description != null) then .annotations.description[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.message != null) then .annotations.message[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.summary != null) then .annotations.summary[0:($trunk|tonumber)] | sub("\n";" ";"g") else "N/A" end) else "N/A" end)") else "" end' | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' -e "s/ [Ww]arning /${yellowtext}&${resetcolor}/" -e "s/ [Ii]nfo /${greentext}&${resetcolor}/" -e "s/ [Cc]ritical /${redtext}&${resetcolor}/" -e "s/ [Mm]ajor /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*ControlPlane[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*Master[a-zA-Z]* /${purpletext}&${resetcolor}/"
+    echo ${RULES} | jq -r --arg trunk ${ALERT_TRUNK} '"ALERTNAME|LAST ACTIVE|NAMESPACE|OBJECT REFERENCE|SEVERITY|DESCRIPTION|",if .data != null then (.data[] | select(.state == "firing") | .alerts | sort_by(.activeAt) | .[] | "\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node elif (.labels.name != null) then .labels.name elif (.labels.channel != null) then .labels.channel elif (.labels.poddisruptionbudget != null) then .labels.poddisruptionbudget else .labels.service end)|\(.labels.severity)|\(if (.annotations != null) then (if (.annotations.description != null) then .annotations.description[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.message != null) then .annotations.message[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.summary != null) then .annotations.summary[0:($trunk|tonumber)] | sub("\n";" ";"g") else "N/A" end) else "N/A" end)") else "" end' | column -t -s'|' | sed -e 's/^"//' -e 's/"$//' -e "s/ [Ww]arning /${yellowtext}&${resetcolor}/" -e "s/ [Ii]nfo /${greentext}&${resetcolor}/" -e "s/ [a-zA-Z_]*[Cc]ritical /${redtext}&${resetcolor}/" -e "s/ [Mm]ajor /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*ControlPlane[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*Master[a-zA-Z]* /${purpletext}&${resetcolor}/"
   else
     ERR_MSG="Failed to retrieve and display the Alerts"
     fct_title "firing Alerts"

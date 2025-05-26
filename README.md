@@ -95,7 +95,7 @@ usage: mg_cluster_status.sh [-acevMmnopsS] [-N namespace] [-d] [-h]
 |      -v | display the EVENTS                                              |           |
 |      -M | display the MACHINES status                                     | [Y]       |
 |      -m | display the MCO status                                          | [Y]       |
-|      -N | Set a namespace to filter the SCC and PODs                      |           |
+|      -N | set a namespace to filter the SCC and PODs                      |           |
 |      -n | display the NODES status                                        | [Y]       |
 |      -o | display the OPERATORS status                                    | [Y]       |
 |      -p | display the PODS status                                         | [Y]       |
@@ -109,28 +109,28 @@ usage: mg_cluster_status.sh [-acevMmnopsS] [-N namespace] [-d] [-h]
 |---------------------------------------------------------------------------------------|
 
 Customizable variables before running the script (Optional):
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|Options                                    | Description                                                                                  | [Default]  | [Current] |
-|-------------------------------------------|----------------------------------------------------------------------------------------------|------------|-----------|
-|export OC=[omc|omg|oc]                     | #Change the must-gather tool (use 'oc' to run the script against live cluster)               | [omc]      |           |
-|export ALERT_TRUNK=<interger>              | #Change the length of the Alert Descriptions                                                 | [100]      |           |
-|export CONDITION_TRUNK=<interger>          | #Change the length of the Operator Message in 'oc get co'                                    | [220]      |           |
-|export POD_TRUNK=<interger>                | #Change the length of the POD Message in 'oc get pod'                                        | [100]      |           |
-|export POD_WIDE=<boolean>                  | #Enable/Disable the '-o wide' option in the command 'oc get pod'                             | [true]     |           |
-|export MIN_RESTART=<integer>               | #Change the minimal number of restart when checking the POD restarts                         | [10]       |           |
-|export NODE_TRANSITION_DAYS=<interger>     | #Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC       | [30]       |           |
-|export OPERATOR_TRANSITION_DAYS=<interger> | #Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators | [2]        |           |
-|export TAIL_LOG=<integer>                  | #Change the number of lines displayed from logs ('tail')                                     | [15]       |           |
-|export graytext=<color_code>               | #Replace the gray color used in the script                                                   | [\x1B[30m] |           |
-|export redtext=<color_code>                | #Replace the red color used in the script                                                    | [\x1B[31m] |           |
-|export greentext=<color_code>              | #Replace the green color used in the script                                                  | [\x1B[32m] |           |
-|export yellowtext=<color_code>             | #Replace the yellow color used in the script                                                 | [\x1B[33m] |           |
-|export bluetext=<color_code>               | #Replace the blue color used in the script                                                   | [\x1B[34m] |           |
-|export purpletext=<color_code>             | #Replace the purple color used in the script                                                 | [\x1B[35m] |           |
-|export cyantext=<color_code>               | #Replace the cyan color used in the script                                                   | [\x1B[36m] |           |
-|export whitetext=<color_code>              | #Replace the white color used in the script                                                  | [\x1B[37m] |           |
-|export resetcolor=<color_code>             | #Replace the color used to rest colors in the script                                         | [\x1B[0m]  |           |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Options                           | Type         | Description                                                                                  | [Default]  | [Current] |
+|-----------------------------------|--------------|----------------------------------------------------------------------------------------------|------------|-----------|
+| export OC=                        | <executable> | #Change the must-gather tool (use 'oc' to run the script against live cluster)               | [omc]      |           |
+| export ALERT_TRUNK=               | <interger>   | #Change the length of the Alert Descriptions                                                 | [100]      |           |
+| export CONDITION_TRUNK=           | <interger>   | #Change the length of the Operator Message in 'oc get co'                                    | [220]      |           |
+| export POD_TRUNK=                 | <interger>   | #Change the length of the POD Message in 'oc get pod'                                        | [100]      |           |
+| export POD_WIDE=                  | <boolean>    | #Enable/Disable the '-o wide' option in the command 'oc get pod'                             | [true]     |           |
+| export MIN_RESTART=               | <integer>    | #Change the minimal number of restart when checking the POD restarts                         | [10]       |           |
+| export NODE_TRANSITION_DAYS=      | <interger>   | #Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC       | [30]       |           |
+| export OPERATOR_TRANSITION_DAYS=  | <interger>   | #Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators | [2]        |           |
+| export TAIL_LOG=                  | <integer>    | #Change the number of lines displayed from logs ('tail')                                     | [15]       |           |
+| export graytext=                  | <color_code> | #Replace the gray color used in the script                                                   | [\x1B[30m] |           |
+| export redtext=                   | <color_code> | #Replace the red color used in the script                                                    | [\x1B[31m] |           |
+| export greentext=                 | <color_code> | #Replace the green color used in the script                                                  | [\x1B[32m] |           |
+| export yellowtext=                | <color_code> | #Replace the yellow color used in the script                                                 | [\x1B[33m] |           |
+| export bluetext=                  | <color_code> | #Replace the blue color used in the script                                                   | [\x1B[34m] |           |
+| export purpletext=                | <color_code> | #Replace the purple color used in the script                                                 | [\x1B[35m] |           |
+| export cyantext=                  | <color_code> | #Replace the cyan color used in the script                                                   | [\x1B[36m] |           |
+| export whitetext=                 | <color_code> | #Replace the white color used in the script                                                  | [\x1B[37m] |           |
+| export resetcolor=                | <color_code> | #Replace the color used to rest colors in the script                                         | [\x1B[0m]  |           |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 
 Current Version:  X.Y.Z - The script is up-to-date. Thanks
 ```
@@ -140,7 +140,7 @@ You can mix the options to display only the desired status:
 ```bash
 mg_check -ae # will only display the alerts and etcd status
 mg_check -vp # will only display the events and pods status
-mg_check -acevmnop # will have the same display as running the script without options
+mg_check -acevMmnopsS # will have the same display as running the script without options
 ```
 
 You can filter on a specific Namespace for the SCC and POD options:
