@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.28
+
+### Minor updates - 1.2.28
+
+- None
+
+### Release updates - 1.2.28
+
+- (EVENT) All to display event for a specific NAMESPACE
+- (SCC) Ensure that the POD list is displayed when specifying a namespace
+
+--------
+
 ## Version 1.2.27
 
 ### Minor updates - 1.2.27

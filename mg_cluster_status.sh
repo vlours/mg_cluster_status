@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.27
+# @VERSION     # 1.2.28
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -661,8 +661,9 @@ fi
 if [[ ! -z ${EVENTS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "DEFAULT EVENTS"
-  fct_title "Events in default namespace"
-  ${OC} get events -n default -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | column -t -s'|'
+  EVENT_NAMESPACE=${NAMESPACE:-"default"}
+  fct_title "Events in ${EVENT_NAMESPACE} namespace"
+  ${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | column -t -s'|'
 fi
 ########### SCC ###########
 if [[ ! -z ${SCC} ]] || [[ ! -z ${ALL} ]]
@@ -711,11 +712,12 @@ then
         done | ${GAWK_PATH} -F'|' -v daysbefore=${TRANSITION_DAYS} '{printf "%s|%s|%s|",$1,$2,$3; time=gensub(/[-:TZ]/," ","g",$4);epoch_fmt=mktime(time);if(epoch_fmt > daysbefore){print "Y_"$4}else{print "G_"$4}}' | column -t -s'|' | sed -e "s/R_\([-a-z0-9.A-Z:]*\)/${redtext}\1  ${resetcolor}/g" -e "s/Y_\([-a-z0-9.A-Z:]*\)/${yellowtext}\1  ${resetcolor}/g" -e "s/G_\([-a-z0-9.A-Z:]*\)/${greentext}\1  ${resetcolor}/g"
       fi
     fi
-    if [[ ! -z ${NAMESPACE} ]]
-    then
-      fct_title "SCC - ${NAMESPACE} PODs' SCC & Security Context"
-      echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${NAMESPACE} '"namespace|name|phase|openshift.io/scc|fsGroup|fsGroupChangePolicy|runAsGroup|runAsNonRoot|runAsUser|seLinuxOptions|seccompProfile|supplementalGroups|sysctls",(.items | sort_by(.metadata.namespace,.metadata.name) | .[] | select(.metadata.namespace == $namespace)| "\(.metadata.namespace)|\(.metadata.name)|\(.status.phase)|\(.metadata.annotations."openshift.io/scc")|\(.spec.securityContext|"\(.fsGroup)|\(.fsGroupChangePolicy)|\(.runAsGroup)|\(.runAsNonRoot)|\(.runAsUser)|\(.seLinuxOptions)|\(.seccompProfile)|\(.supplementalGroups)|\(.sysctls)")")' | column -ts'|'
-    fi
+  fi
+  if [[ ! -z ${NAMESPACE} ]]
+  then
+    ALL_PODS_JSON=$(${OC} get pods -n ${NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+    fct_title "SCC - ${NAMESPACE} PODs' SCC & Security Context"
+    echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${NAMESPACE} '"namespace|name|phase|openshift.io/scc|fsGroup|fsGroupChangePolicy|runAsGroup|runAsNonRoot|runAsUser|seLinuxOptions|seccompProfile|supplementalGroups|sysctls",(.items | sort_by(.metadata.namespace,.metadata.name) | .[] | select(.metadata.namespace == $namespace)| "\(.metadata.namespace)|\(.metadata.name)|\(.status.phase)|\(.metadata.annotations."openshift.io/scc")|\(.spec.securityContext|"\(.fsGroup)|\(.fsGroupChangePolicy)|\(.runAsGroup)|\(.runAsNonRoot)|\(.runAsUser)|\(.seLinuxOptions)|\(.seccompProfile)|\(.supplementalGroups)|\(.sysctls)")")' | column -ts'|'
   fi
 fi
 ########### PODS ###########
