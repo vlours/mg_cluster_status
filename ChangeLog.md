@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.29
+
+### Minor updates - 1.2.29
+
+- None
+
+### Release updates - 1.2.29
+
+- (Static) Moving the ETCD encryption in the ETCD section
+- (ETCD) Checking the envryption and number of 'encryption-config' secrets.
+- (POD) Fixing issue in the function 'fct_unsuccessful_container_details' and added a new 'ready' column
+
+--------
+
 ## Version 1.2.28
 
 ### Minor updates - 1.2.28

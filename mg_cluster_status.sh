@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.28
+# @VERSION     # 1.2.29
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -160,15 +160,16 @@ fct_unsuccessful_pod_details() {
 }
 
 fct_unsuccessful_container_details() {
-  if [[ -z ${NAMESPACE=} ]]
+  if [[ -z ${NAMESPACE} ]]
   then
     ALL_PODS=${ALL_PODS:-$(${OC} get pods -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    UNCOMPLETE_POD_LIST=$(echo "${ALL_PODS}" | grep -Ev "^NAME|Completed|Succeeded" | awk -F '[ /]*' '{if($3 != $4){print $1"/"$2}}')
   else
-    ALL_PODS=$(${OC} get pods -n ${NAMESPACE} ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+    ALL_PODS=${ALL_PODS:-$(${OC} get pods -n ${NAMESPACE} ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -n ${NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
+    UNCOMPLETE_POD_LIST=$(echo "${ALL_PODS}" | grep -Ev "^NAME|Completed|Succeeded" | awk -F '[ /]*' -v thenamespace=${NAMESPACE} '{if($2 != $3){print thenamespace"/"$1}}')
   fi
-  ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
-  UNCOMPLETE_POD_JSON=$(echo "${ALL_PODS_JSON}" | jq -r '[.items[] | select((.status.phase != "Succeeded") and ((.status.containerStatuses != null) and (.status.containerStatuses[] | select(.state | to_entries[] | (.key == "terminated") and (.value.reason == "Completed") | not))) and ((.status.containerStatuses == null) or ([(.status.containerStatuses[].state | if(to_entries[]| .key == "running") then 1 else 0 end)] | add) != (.spec.containers | length)))] | unique')
-  UNCOMPLETE_POD_LIST=$(echo "${UNCOMPLETE_POD_JSON}" | jq -r '.[].metadata | " \(.namespace)/\(.name)"')
   echo "${ALL_PODS}" | grep -E "^NAME"
   for POD_details in ${UNCOMPLETE_POD_LIST}
   do
@@ -181,14 +182,14 @@ fct_unsuccessful_container_details() {
       echo "${ALL_PODS}" | grep -E "^${pod_name}" | sed -e "s/ [0-9]*\/[0-9]* /${yellowtext}&${resetcolor}/"
     fi
     CONTAINER_DETAILS=""
-    EXTRACT_CONTAINER_DETAILS=$(echo "${UNCOMPLETE_POD_JSON}" | jq -r --arg namespace ${namespace} --arg podname ${pod_name} --arg trunk ${POD_TRUNK} '.[] | select((.metadata.namespace == $namespace) and (.metadata.name == $podname)) | .status | if (.containerStatuses != null) then (.containerStatuses[] | select(.ready != true) | { "name": .name, "state": .state | to_entries[] | .key, "restartCount": .restartCount, "startedAt": (if (.lastState != {}) then (.lastState | to_entries[] | .value.startedAt) else (.state | to_entries[] | .value.startedAt) end), "exitCode": (if (.lastState != {}) then (.lastState | to_entries[] | .value.exitCode) else (.state | to_entries[] | .value.exitCode) end), "reason": (if (.state | to_entries[] | .value.reason == "CrashLoopBackOff" ) then (.state | to_entries[] | .value.reason) elif (.lastState != {}) then (.lastState | to_entries[] | .value.reason) else (.state | to_entries[] | .value.reason) end), "message": .state | to_entries[] | (if .value.message != null  then .value.message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "" end) } ) else "" end')
+    EXTRACT_CONTAINER_DETAILS=$(echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${namespace} --arg podname ${pod_name} --arg trunk ${POD_TRUNK} '.items[] | select((.metadata.namespace == $namespace) and (.metadata.name == $podname)) | .status | if (.containerStatuses != null) then (.containerStatuses[] | select(.ready != true) | { "name": .name, "state": .state | to_entries[] | .key, "ready": .ready, "restartCount": .restartCount, "startedAt": (if (.lastState != {}) then (.lastState | to_entries[] | .value.startedAt) else (.state | to_entries[] | .value.startedAt) end), "exitCode": (if (.lastState != {}) then (.lastState | to_entries[] | .value.exitCode) else (.state | to_entries[] | .value.exitCode) end), "reason": (if (.state | to_entries[] | .value.reason == "CrashLoopBackOff" ) then (.state | to_entries[] | .value.reason) elif (.lastState != {}) then (.lastState | to_entries[] | .value.reason) else (.state | to_entries[] | .value.reason) end), "message": .state | to_entries[] | (if .value.message != null  then .value.message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "" end) } ) else "" end')
     if [[ ! -z ${EXTRACT_CONTAINER_DETAILS} ]]
     then
-      CONTAINER_DETAILS=$(echo "${EXTRACT_CONTAINER_DETAILS}" | sed -e "s/\\\n/_/g" | jq -r '"\(.name)+\(.state)+\(.restartCount)+\(.startedAt)+\(.exitCode)+\(.reason)+\(.message | sub("\n";" ";"g"))"' | sed -e "s/ /_/g")
+      CONTAINER_DETAILS=$(echo "${EXTRACT_CONTAINER_DETAILS}" | sed -e "s/\\\n/_/g" | jq -r '"\(.name)+\(.state)+\(.ready)+\(.restartCount)+\(.startedAt)+\(.exitCode)+\(.reason)+\(.message | sub("\n";" ";"g"))"' | sed -e "s/ /_/g")
     fi
-    for line in "Container Name+state+restartCount+startedAt+exitCode+reason+message" "--------------+-----+------------+---------+--------+--------+---------" ${CONTAINER_DETAILS}
+    for line in "Container Name+state+ready+restartCount+startedAt+exitCode+reason+message" "--------------+-----+-----+------------+---------+--------+--------+---------" ${CONTAINER_DETAILS}
     do
-      printf "|-> %-32s %-12s %-15s %-22s %-10s %-22s %-10s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7 | sed -e "s/_/ /g")"
+      printf "|-> %-32s %-12s %-6s %-15s %-22s %-10s %-22s %-10s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7)" "$(echo ${line} | cut -d'+' -f8 | sed -e "s/_/ /g")" | sed -e "s/ false /${yellowtext}&${resetcolor}/" -e "s/ waiting /${yellowtext}&${resetcolor}/" -e "s/ CrashLoopBackOff /${redtext}&${resetcolor}/"
     done
     echo
   done
@@ -818,12 +819,6 @@ then
       fi
       echo
     done
-    ETCD_ENCRYPTION=$(${OC} get apiserver.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r .spec.encryption)
-    if [[ ${ETCD_ENCRYPTION} != "null" ]]
-    then
-      fct_title "ETCD Encryption"
-      echo "${ETCD_ENCRYPTION}"
-    fi
   fi
 fi
 
@@ -831,6 +826,28 @@ fi
 if [[ ! -z ${ETCD} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "ETCD STATUS"
+  ETCD_ENCRYPTION=$(${OC} get apiserver.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r .spec.encryption)
+  if [[ ${ETCD_ENCRYPTION} != "null" ]]
+  then
+    fct_title "ETCD Encryption"
+    echo "${ETCD_ENCRYPTION}"
+
+    ENCRYPTION_SECRETS_LIST=$(${OC} get secret -n openshift-kube-apiserver -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r --arg period ${LAST_28days} '[ (.items | sort_by(.metadata.creationTimestamp) | .[].metadata | select((.name|startswith("encryption-config-")) and (.finalizers != null) and (.finalizers[] | test("deletion-protection")) and (.creationTimestamp <= $period)) | { "name": .name, "creationTimestamp": .creationTimestamp}) ]')
+    NB_ENCRYPTION_SECRETS=$(echo ${ENCRYPTION_SECRETS_LIST} | jq -r 'length')
+    if [[ ${NB_ENCRYPTION_SECRETS} != 0 ]]
+    then
+      if [[ ${NB_ENCRYPTION_SECRETS} > 50 ]]
+      then
+        color_message=${redtext}
+      else
+        color_message=${yellowtext}
+      fi
+      fct_title_details "High number of Encryption secrets"
+      echo -e "There are ${color_message}${NB_ENCRYPTION_SECRETS}${resetcolor} secret older than 28 days."
+      fct_title_details "10 oldest secrets"
+      echo ${ENCRYPTION_SECRETS_LIST} | jq -r '.[:10] | .[] | "\(.name)|\(.creationTimestamp)"' |column -ts'|' | sed -e "s/\([-0-9TZ:]*\)$/${color_message}\1${resetcolor}/"
+    fi
+  fi
   fct_title "ETCD Health"
   if [[ "${OC}" == "omg" ]] || [[ "${OC}" == "omc" ]]
   then
