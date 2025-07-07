@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.30
+
+### Minor updates - 1.2.30
+
+- None
+
+### Release updates - 1.2.30
+
+- (EVENT) Allow detail view to dsplay all events, or using the 'DEFAULT_TAIL_LOG' variable to tail the ouput
+- (MAIN) Setting the default log/event output to 25 lines.
+- (README) Updating the README Accordingly.
+
+--------
+
 ## Version 1.2.29
 
 ### Minor updates - 1.2.29
@@ -20,7 +34,7 @@
 
 ### Release updates - 1.2.29
 
-- (Static) Moving the ETCD encryption in the ETCD section
+- (STATIC) Moving the ETCD encryption in the ETCD section
 - (ETCD) Checking the envryption and number of 'encryption-config' secrets.
 - (POD) Fixing issue in the function 'fct_unsuccessful_container_details' and added a new 'ready' column
 

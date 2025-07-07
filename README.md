@@ -92,10 +92,9 @@ usage: mg_cluster_status.sh [-acevMmnopsS] [-N namespace] [-d] [-h]
 |      -a | display the ALERTS                                              |           |
 |      -c | display the CLUSTER CONTEXT                                     |           |
 |      -e | display the ETCD status                                         |           |
-|      -v | display the EVENTS                                              |           |
+|      -v | display the EVENTS                                              | [Y]       |
 |      -M | display the MACHINES status                                     | [Y]       |
 |      -m | display the MCO status                                          | [Y]       |
-|      -N | set a namespace to filter the SCC and PODs                      |           |
 |      -n | display the NODES status                                        | [Y]       |
 |      -o | display the OPERATORS status                                    | [Y]       |
 |      -p | display the PODS status                                         | [Y]       |
@@ -104,6 +103,7 @@ usage: mg_cluster_status.sh [-acevMmnopsS] [-N namespace] [-d] [-h]
 |---------|-----------------------------------------------------------------|-----------|
 |         | Additional Options:                                             |           |
 |---------|-----------------------------------------------------------------|-----------|
+|      -N | set a namespace to filter the SCC and PODs                      |           |
 |      -d | display additional details on specific Options (as noted above) |           |
 |      -h | display this help and check for updated version                 | [Y]       |
 |---------------------------------------------------------------------------------------|
@@ -120,7 +120,7 @@ Customizable variables before running the script (Optional):
 | export MIN_RESTART=               | <integer>    | #Change the minimal number of restart when checking the POD restarts                         | [10]       |           |
 | export NODE_TRANSITION_DAYS=      | <interger>   | #Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC       | [30]       |           |
 | export OPERATOR_TRANSITION_DAYS=  | <interger>   | #Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators | [2]        |           |
-| export TAIL_LOG=                  | <integer>    | #Change the number of lines displayed from logs ('tail')                                     | [15]       |           |
+| export TAIL_LOG=                  | <integer>    | #Change the number of lines displayed from events and logs ('tail')                          | [25]       |           |
 | export graytext=                  | <color_code> | #Replace the gray color used in the script                                                   | [\x1B[30m] |           |
 | export redtext=                   | <color_code> | #Replace the red color used in the script                                                    | [\x1B[31m] |           |
 | export greentext=                 | <color_code> | #Replace the green color used in the script                                                  | [\x1B[32m] |           |
