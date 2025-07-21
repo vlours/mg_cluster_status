@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.31
+
+### Minor updates - 1.2.31
+
+- None
+
+### Release updates - 1.2.31
+
+- (MCO) set a variable to tail the list of MCs (Default:15)
+- (ETCD) adding the 'finished defragment' and re-managing the checks using json queries
+- (README) Updating the README Accordingly.
+
+--------
+
 ## Version 1.2.30
 
 ### Minor updates - 1.2.30

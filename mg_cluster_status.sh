@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.30
+# @VERSION     # 1.2.31
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -69,6 +69,7 @@ fct_help(){
     printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export NODE_TRANSITION_DAYS=" "<interger>" "#Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC" "[${DEFAULT_NODE_TRANSITION_DAYS}]" "$(if [[ ! -z ${NODE_TRANSITION_DAYS} ]] && [[ ${NODE_TRANSITION_DAYS} != ${DEFAULT_NODE_TRANSITION_DAYS} ]]; then echo "[${NODE_TRANSITION_DAYS}]"; fi)"
     printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export OPERATOR_TRANSITION_DAYS=" "<interger>" "#Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators" "[${DEFAULT_OPERATOR_TRANSITION_DAYS}]" "$(if [[ ! -z ${OPERATOR_TRANSITION_DAYS} ]] && [[ ${OPERATOR_TRANSITION_DAYS} != ${DEFAULT_OPERATOR_TRANSITION_DAYS} ]]; then echo "[${OPERATOR_TRANSITION_DAYS}]"; fi)"
     printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export TAIL_LOG=" "<integer>" "#Change the number of lines displayed from events and logs ('tail')" "[${DEFAULT_TAIL_LOG}]" "$(if [[ ! -z ${TAIL_LOG} ]] && [[ ${TAIL_LOG} != ${DEFAULT_TAIL_LOG} ]]; then echo "[${TAIL_LOG}]"; fi)"
+    printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export TAIL_MC=" "<integer>" "#Change the number of lines displayed from Latest MCs list ('tail')" "[${DEFAULT_TAIL_MC}]" "$(if [[ ! -z ${TAIL_MC} ]] && [[ ${TAIL_LOG} != ${DEFAULT_TAIL_MC} ]]; then echo "[${TAIL_MC}]"; fi)"
     printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export graytext=" "<color_code>" "#Replace the gray color used in the script" "[${DEFAULT_graytext}]" "$(if [[ ! -z "${graytext}" ]] && [[ "${graytext}" != "${DEFAULT_graytext}" ]]; then echo "[${graytext}]"; fi)"
     printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export redtext=" "<color_code>" "#Replace the red color used in the script" "[${DEFAULT_redtext}]" "$(if [[ ! -z "${redtext}" ]] && [[ "${redtext}" != "${DEFAULT_redtext}" ]]; then echo "[${redtext}]"; fi)"
     printf "| ${purpletext}%-${EXPORT_TAB}s${resetcolor} | %-${TYPE_TAB}s | %-${COMMENT_TAB}s | ${greentext}%-${DEFAULT_TAB}s${resetcolor} | ${redtext}%-${CURRENT_TAB}s${resetcolor}|\n" "export greentext=" "<color_code>" "#Replace the green color used in the script" "[${DEFAULT_greentext}]" "$(if [[ ! -z "${greentext}" ]] && [[ "${greentext}" != "${DEFAULT_greentext}" ]]; then echo "[${greentext}]"; fi)"
@@ -242,6 +243,7 @@ DEFAULT_WIDE="true"
 DEFAULT_CONDITION_TRUNK="220"
 DEFAULT_MIN_RESTART="10"
 DEFAULT_TAIL_LOG="25"
+DEFAULT_TAIL_MC="15"
 DEFAULT_NODE_TRANSITION_DAYS=30
 DEFAULT_OPERATOR_TRANSITION_DAYS=2
 DEFAULT_graytext="\x1B[30m"
@@ -389,7 +391,9 @@ CONDITION_TRUNK=${CONDITION_TRUNK:-${DEFAULT_CONDITION_TRUNK}}
 POD_TRUNK=${POD_TRUNK:-${DEFAULT_TRUNK}}
 # Minimal restart count for PODs
 MIN_RESTART=${MIN_RESTART:-${DEFAULT_MIN_RESTART}}
+# Set the tail variables
 TAIL_LOG=${TAIL_LOG:-${DEFAULT_TAIL_LOG}}
+TAIL_MC=${TAIL_MC:-${DEFAULT_TAIL_MC}}
 # Conditions Transitions limits:
 NODE_TRANSITION_DAYS=${NODE_TRANSITION_DAYS:-${DEFAULT_NODE_TRANSITION_DAYS}}
 OPERATOR_TRANSITION_DAYS=${OPERATOR_TRANSITION_DAYS:-${DEFAULT_OPERATOR_TRANSITION_DAYS}}
@@ -625,7 +629,7 @@ then
   fi
   fct_title "Latest MachineConfigs"
   MC_JSON=$(${OC} get machineconfig.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
-  echo ${MC_JSON} | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -10 | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
+  echo ${MC_JSON} | jq -r '.items| sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | "\(.metadata.creationTimestamp) - \(.metadata.name)"' | tail -${TAIL_MC} | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
   if [[ ! -z ${DETAILS} ]]
   then
     MC_JSON_conflicts=$(echo ${MC_JSON} | jq -r '.items[] | select((.spec.osImageURL != null) and (.spec.osImageURL != "") and (.metadata.name | startswith("rendered-") | not)) | {name: .metadata.name, osImageURL: .spec.osImageURL}')
@@ -869,11 +873,11 @@ then
     fct_title "ETCD member list"
     ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl member list -w table
   fi
-  fct_title "ETCD \"took too long\" & \"server is likely overloaded\" log messages"
+  fct_title "ETCD \"finished defragment\", \"server is likely overloaded\" & \"took too long\" log messages"
   for POD in $(${OC} get pods -n openshift-etcd -l app=etcd -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | cut -d'/' -f2-)
   do
     fct_title_details "${POD}"
-    ${OC} logs $POD -c etcd -n openshift-etcd 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | grep -E "took too long|server is likely overloaded" | sed -e "s/\(.*\)\(took too long\)\(.*\)/\2/" -e "s/\(.*\)\(server is likely overloaded\)\(.*\)/\2/" | sort | uniq -c | sed -e "s/^ *[1-9][0-9]\{2\} /${yellowtext}&${resetcolor}/" -e "s/^ *[1-9][0-9]\{3,10\} /${redtext}&${resetcolor}/"
+    ${OC} logs $POD -c etcd -n openshift-etcd 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | grep -E "took too long|server is likely overloaded|finished defragment" | sed -e "s/[-:.0-9TZ]* //" | jq -r '.msg' | sort |uniq -c | sed -e "s/^ *[1-9][0-9]\{2\} /${yellowtext}&${resetcolor}/" -e "s/^ *[1-9][0-9]\{3,10\} /${redtext}&${resetcolor}/"
   done
 fi
 
