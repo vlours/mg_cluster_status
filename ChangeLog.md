@@ -12,6 +12,18 @@
 
 --------
 
+## Version 1.2.32
+
+### Minor updates - 1.2.32
+
+- None
+
+### Release updates - 1.2.32
+
+- (CONTEXT) Adding the status of the 'FeatureGate'
+
+--------
+
 ## Version 1.2.31
 
 ### Minor updates - 1.2.31
