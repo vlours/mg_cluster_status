@@ -673,7 +673,7 @@ then
           KEY=$(echo ${MCPLABEL} | cut -d'=' -f1)
           VALUE=$(echo ${MCPLABEL} | cut -d'=' -f2)
           LABELEDMCPS=$(echo "${MCP_JSON}" | jq -rc --arg labelkey "${KEY}" --arg labelvalue "${VALUE}" '[ .items[].metadata | select((.labels != null) and (.labels | to_entries[] | select((.key == $labelkey) and (.value == $labelvalue)))) | .name ]')
-          echo "${kubeletConfigName}|\"${KEY}\":\"${VALUE}\"|${LABELEDMCPS}"
+          echo "${kubeletConfigName}|\"${KEY}\":\"${VALUE}\"|${LABELEDMCPS}" | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
         done
       done)" | column -ts'|'
     fi
