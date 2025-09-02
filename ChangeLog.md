@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.33
+
+### Minor updates - 1.2.33
+
+- None
+
+### Release updates - 1.2.33
+
+- (NODE) move the 'kubeletConfig' in the MCO section
+- (MCO) Include 'kubeletConfig' for 'system reserved' and newly '
+
+--------
+
 ## Version 1.2.32
 
 ### Minor updates - 1.2.32

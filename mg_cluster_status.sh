@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.32
+# @VERSION     # 1.2.33
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -498,12 +498,6 @@ then
       fct_title_details "Node overcommitment"
       ${OC} describe nodes | awk 'BEGIN{ovnsubnet="";printf " |%s| | | | |%s| | | | |%s| |%s\n%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n","CPU","MEM","PODs","OVN","NODENAME","Allocatable","Request","(%)","Limit","(%)","Allocatable","Request","(%)","Limit","(%)","Allocatable","Running","Node Subnet"}{if($1 == "Name:"){name=$2};if($1 == "k8s.ovn.org/node-subnets:"){ovnsubnet=$2};if($1 ~ "Allocatable:"){while($1 != "System"){if($1 == "cpu:"){Alloc_cpu=$2};if($1 == "memory:"){Alloc_mem=$2};if($1 == "pods:"){Alloc_pod=$2};getline}};if($1 == "Namespace"){getline;getline;pods_count=0;while($1 != "Allocated"){pods_count++;getline}};if($1 == "Resource"){while($1 != "Events:"){if($1 == "cpu"){req_cpu=$2;preq_cpu=$3;lim_cpu=$4;plim_cpu=$5};if($1 == "memory"){req_mem=$2;preq_mem=$3;lim_mem=$4;plim_mem=$5};getline};printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",name,Alloc_cpu,req_cpu,preq_cpu,lim_cpu,plim_cpu,Alloc_mem,req_mem,preq_mem,lim_mem,plim_mem,Alloc_pod,pods_count,ovnsubnet}}' | sed -e "s/{\"default\":\[\{0,1\}\"\([.\/0-9]*\)\"\]\{0,1\}\]}/\1/" | column -s'|' -t | sed -e "s/([0-9]\{3,4\}%)/${redtext}&${resetcolor}/g" -e "s/(1[0-9]\{2\}%)/${yellowtext}&${resetcolor}/g"
     fi
-    KUBELETCONFIG=${KUBELETCONFIG:-$(${OC} get kubeletconfig.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r 'if(.items != null) then . else null end')}
-    if [[ "${KUBELETCONFIG}" != "null" ]] && [[ "${KUBELETCONFIG}" != "" ]]
-    then
-      fct_title_details "System Reserved"
-      echo "${KUBELETCONFIG}" | jq -r '"Name|autoSizingReserved|cpu|memory|ephemeral-resource|MCP Label(s)",(if (.items == null) then (.[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.cpu != null) then .cpu else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.memory != null) then .memory else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end) else "-" end)|\(.spec.machineConfigPoolSelector | if (.matchLabels != null) then (.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ]) else (.matchExpressions[] | "\(.operator) \(.key)") end)") else (.items[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.cpu != null) then .cpu else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(.memory != null) then .memory else "-" end) else "-" end)|\(.spec |if(.kubeletConfig != null and .kubeletConfig.systemReserved != null)then (.kubeletConfig.systemReserved | if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end) else "-" end)|\(.spec.machineConfigPoolSelector | if (.matchLabels != null) then (.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ]) else (.matchExpressions[] | "\(.operator) \(.key)") end)") end)' | column -t -s'|'
-    fi
   fi
   fct_title "CSRs"
   ${OC} get csr.certificates.k8s.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp|NAME|SIGNERNAME|REQUESTOR|REQUESTEDDURATION|CONDITION",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp)|\(.metadata.name)|\(.spec.signerName)|\(.spec.username)|<None>|\(if (.status.conditions == null) then "Pending" elif ((.status.certificate != null) and (.status.conditions[].type == "Approved")) then "Approved,Issued" else .status.conditions[0].type end)")' | column -s'|' -t | sed -e "s/Pending/${redtext}&${resetcolor}/" -e "s/Approved.*/${greentext}&${resetcolor}/"
@@ -662,6 +656,27 @@ then
         ${OC} logs -n openshift-machine-config-operator ${pod_name} -c machine-config-daemon | tail -${TAIL_LOG}
       fi
     done
+  fi
+  KUBELETCONFIG=${KUBELETCONFIG:-$(${OC} get kubeletconfig.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r 'if(.items != null) then . else null end')}
+  if [[ "${KUBELETCONFIG}" != "null" ]] && [[ "${KUBELETCONFIG}" != "" ]]
+  then
+    fct_title "Kubelet Config(s)"
+    echo "${KUBELETCONFIG}" | jq -r '" |System Reserved||||CPU Manager|||Related MCP\nName|autoSizingReserved|cpu|memory|ephemeral-resource|cpuManagerPolicy|cpuManagerReconcilePeriod|topologyManagerPolicy|Label(s)",(if (.items == null) then (.[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if (.kubeletConfig == null) then "-|-|-|-|-|-" else (.kubeletConfig | "\(if(.systemReserved == null) then "-|-|-" else (.systemReserved | "\(if(.cpu != null) then .cpu else "-" end)|\(if(.memory != null) then .memory else "-" end)|\(if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end)") end)|\(if (.cpuManagerPolicy == null) then "-" else .cpuManagerPolicy end)|\(if (.cpuManagerReconcilePeriod == null) then "-" else .cpuManagerReconcilePeriod end)|\(if (.topologyManagerPolicy == null) then "-" else .topologyManagerPolicy end)") end)|\(.spec.machineConfigPoolSelector | if (.matchLabels != null) then (.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ]) else (.matchExpressions[] | "\(.operator) \(.key)") end)") else (.items[]|"\(.metadata.name)|\(.spec | if((.autoSizingReserved == null) or (.autoSizingReserved == false)) then false else true end)|\(.spec |if (.kubeletConfig == null) then "-|-|-|-|-|-" else (.kubeletConfig | "\(if(.systemReserved == null) then "-|-|-" else (.systemReserved | "\(if(.cpu != null) then .cpu else "-" end)|\(if(.memory != null) then .memory else "-" end)|\(if(."ephemeral-storage" != null) then ."ephemeral-storage" else "-" end)") end)|\(if (.cpuManagerPolicy == null) then "-" else .cpuManagerPolicy end)|\(if (.cpuManagerReconcilePeriod == null) then "-" else .cpuManagerReconcilePeriod end)|\(if (.topologyManagerPolicy == null) then "-" else .topologyManagerPolicy end)") end)|\(.spec.machineConfigPoolSelector | if (.matchLabels != null) then (.matchLabels | [to_entries[] | (.key | split("/") | if(.[0] == "pools.operator.machineconfiguration.openshift.io") then .[1] else .[0] end) + (if (.value != "") then ": \"\(.value)\"" else "" end) ]) else (.matchExpressions[] | "\(.operator) \(.key)") end)") end)' | column -t -s'|' | sed -e "s/true/${yellowtext}&${resetcolor}/g" -e "s/false/${yellowtext}&${resetcolor}/g" -e "s/static/${yellowtext}&${resetcolor}/g" -e "s/none/${greentext}&${resetcolor}/g"
+    if [[ ! -z ${DETAILS} ]]
+    then
+      fct_title_details "MCP(s) attached to the kubeletConfig(s)"
+      echo -e "KubeletConfig|Label|MCP(s)\n-------------|-----|------\n$(for kubeletConfigName in $(echo "${KUBELETCONFIG}" | jq -r '(if (.items[] != null) then .items[].metadata.name else .[].metadata.name end)')
+      do
+        MCPLABELS=$(echo "${KUBELETCONFIG}" | jq -r --arg name ${kubeletConfigName} '(if (.items[] != null) then (.items[] | select (.metadata.name == $name) | .spec.machineConfigPoolSelector.matchLabels | to_entries[] | "\(.key)=\(.value)") else (.[] | select (.metadata.name == $name) | .spec.machineConfigPoolSelector.matchLabels | to_entries[] | "\(.key)=\(.value)") end)')
+        for MCPLABEL in ${MCPLABELS}
+        do
+          KEY=$(echo ${MCPLABEL} | cut -d'=' -f1)
+          VALUE=$(echo ${MCPLABEL} | cut -d'=' -f2)
+          LABELEDMCPS=$(echo "${MCP_JSON}" | jq -rc --arg labelkey "${KEY}" --arg labelvalue "${VALUE}" '[ .items[].metadata | select((.labels != null) and (.labels | to_entries[] | select((.key == $labelkey) and (.value == $labelvalue)))) | .name ]')
+          echo "${kubeletConfigName}|\"${KEY}\":\"${VALUE}\"|${LABELEDMCPS}"
+        done
+      done)" | column -ts'|'
+    fi
   fi
 fi
 
