@@ -21,7 +21,7 @@
 ### Release updates - 1.2.33
 
 - (NODE) move the 'kubeletConfig' in the MCO section
-- (MCO) Include 'kubeletConfig' for 'system reserved' and newly '
+- (MCO) Include 'kubeletConfig' for 'system reserved' and newly 'CPU Manager'
 
 --------
 
