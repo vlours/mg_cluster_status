@@ -12,6 +12,22 @@
 
 --------
 
+## Version 1.2.34
+
+### Minor updates - 1.2.34
+
+- None
+
+### Release updates - 1.2.34
+
+- (MCO) Fix format issue when a MCP has not 'CONFIG' set.
+- (MCO) Including all kubeletconfig keys in the kubeleconfig display
+- (MCO) Fixing the detailed output of the kubeletconfig (removing duplicate configs)
+- (ETCD) exclude encryption status if variable is empty.
+- (ETCD) Fixing bug when checking ETCD logs, due to different log format.
+
+--------
+
 ## Version 1.2.33
 
 ### Minor updates - 1.2.33
