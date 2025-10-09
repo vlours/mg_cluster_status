@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.33
+# @VERSION     # 1.2.34
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
