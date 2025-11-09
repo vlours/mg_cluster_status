@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.34
+# @VERSION     # 1.2.35
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -499,6 +499,50 @@ then
       ${OC} describe nodes | awk 'BEGIN{ovnsubnet="";printf " |%s| | | | |%s| | | | |%s| |%s\n%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n","CPU","MEM","PODs","OVN","NODENAME","Allocatable","Request","(%)","Limit","(%)","Allocatable","Request","(%)","Limit","(%)","Allocatable","Running","Node Subnet"}{if($1 == "Name:"){name=$2};if($1 == "k8s.ovn.org/node-subnets:"){ovnsubnet=$2};if($1 ~ "Allocatable:"){while($1 != "System"){if($1 == "cpu:"){Alloc_cpu=$2};if($1 == "memory:"){Alloc_mem=$2};if($1 == "pods:"){Alloc_pod=$2};getline}};if($1 == "Namespace"){getline;getline;pods_count=0;while($1 != "Allocated"){pods_count++;getline}};if($1 == "Resource"){while($1 != "Events:"){if($1 == "cpu"){req_cpu=$2;preq_cpu=$3;lim_cpu=$4;plim_cpu=$5};if($1 == "memory"){req_mem=$2;preq_mem=$3;lim_mem=$4;plim_mem=$5};getline};printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",name,Alloc_cpu,req_cpu,preq_cpu,lim_cpu,plim_cpu,Alloc_mem,req_mem,preq_mem,lim_mem,plim_mem,Alloc_pod,pods_count,ovnsubnet}}' | sed -e "s/{\"default\":\[\{0,1\}\"\([.\/0-9]*\)\"\]\{0,1\}\]}/\1/" | column -s'|' -t | sed -e "s/([0-9]\{3,4\}%)/${redtext}&${resetcolor}/g" -e "s/(1[0-9]\{2\}%)/${yellowtext}&${resetcolor}/g"
     fi
   fi
+
+  noProxy_Subnets=$(${OC} get proxy.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.status.noProxy' | awk -F',' '{i=1; while(i <= NF){print $i;i++}}' | grep -E "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}")
+  if [[ ! -z ${noProxy_Subnets} ]]
+  then
+    IPCALC_PATH=${IPCALC_PATH:-$(which ipcalc 2>${STD_ERR})}
+    if [[ -z ${IPCALC_PATH} ]]
+    then
+      echo "WARNING: Unable to display this view as it requires 'ipcalc' to run. Please consider installing it on this server"
+    else
+      fct_title "Nodes not included in the noProxy environment"
+      for nodedetails in $(echo "${NODE_JSON}" | jq -r '.items[]|"\(.metadata.name)|\(.status.addresses | "\(map(select(.type == "InternalIP") | .address))")"')
+      do
+        NODENAME=$(echo ${nodedetails} | cut -d'|' -f1)
+        NODEIPS=$(echo ${nodedetails} | cut -d'|' -f2 | sed -e "s/\"//g" -e "s/\[//" -e "s/\]//" -e "s/, / /g")
+        unset is_present
+        for NODEIP in ${NODEIPS}
+        do
+          for network in ${noProxy_Subnets}
+          do
+            netmask=$(echo ${network} | cut -d'/' -f2)
+            if [[ $(${IPCALC_PATH} ${NODEIP}/${netmask} | awk '($1 == "Network:"){print $2}') == ${network} ]]
+            then
+              if [[ -z ${is_present} ]]
+              then
+                is_present="${network}"
+              else
+                is_present="${is_present} ${network}"
+              fi
+            fi
+          done
+        done
+        if [[ -z ${is_present} ]]
+        then
+          echo -e "Node ${NODENAME}|[${NODEIPS}]|${redtext}is NOT included${resetcolor} in any noProxy subnets"
+        else
+          if [[ ! -z ${DETAILS} ]]
+          then
+            echo -e "Node ${NODENAME}|[${NODEIPS}]|${greentext}is included${resetcolor} in the noProxy config (${is_present})"
+          fi
+        fi
+      done | column -ts'|' | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
+    fi
+  fi
+
   fct_title "CSRs"
   ${OC} get csr.certificates.k8s.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp|NAME|SIGNERNAME|REQUESTOR|REQUESTEDDURATION|CONDITION",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp)|\(.metadata.name)|\(.spec.signerName)|\(.spec.username)|<None>|\(if (.status.conditions == null) then "Pending" elif ((.status.certificate != null) and (.status.conditions[].type == "Approved")) then "Approved,Issued" else .status.conditions[0].type end)")' | column -s'|' -t | sed -e "s/Pending/${redtext}&${resetcolor}/" -e "s/Approved.*/${greentext}&${resetcolor}/"
 fi
@@ -591,7 +635,7 @@ then
     done
   fi
   fct_title "CSV"
-  echo -e "Name | Display Name | Provider | Version | Phase\n$(${OC} get clusterserviceversion.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name) | \(.spec.displayName) | \(if (.spec.provider.name != null) then .spec.provider.name else "N/A" end) | \(.spec.version) | \(.status.phase)")' 2>${STD_ERR} | sort -u)" | column -t -s"|" | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Installing$/${yellowtext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g"
+  ${OC} get clusterserviceversion.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"Namespace|Name|Display Name|Provider|Version|Phase\n",(.items | sort_by(.metadata.name) | group_by(.metadata.name) | map({namespaces: map(.metadata.namespace), name: .[0].metadata.name, displayName: .[0].spec.displayName, provider: (if (.[0].spec.provider.name != null) then .[0].spec.provider.name else "N/A" end), version: .[0].spec.version, phase: .[0].status.phase}) | .[] | "\(if ((.namespaces | length) > 1) then "ALL" else .namespaces[0] end)|\(.name)|\(.displayName)|\(.provider)|\(.version)|\(.phase)")' 2>${STD_ERR} | column -t -s"|" | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Installing$/${yellowtext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g"
   fct_title "Subscriptions"
   ${OC} get subscriptions.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"NAME|CHANNEL|APPROVAL|SOURCE|SOURCENAMESPACE|STATE",(.items | sort_by(.metadata.name) | .[] | "\(.metadata.name)|\(.spec | "\(.channel)|\(.installPlanApproval)|\(.source)|\(.sourceNamespace)")|\(.status.state)")' | column -ts'|' | sed -e "s/AtLatestKnown$/${greentext}&${resetcolor}/g" -e "s/UpgradePending$/${yellowtext}&${resetcolor}/g" -e "s/Manual/${yellowtext}&${resetcolor}/g"
 fi

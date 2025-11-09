@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.35
+
+### Minor updates - 1.2.35
+
+- None
+
+### Release updates - 1.2.35
+
+- (NODE) Additional test to check if the nodeIPs are included in the 'noProxy' config (when defined).
+- (README) Include/update requirements
+- (OPERATOR) Include the namespace or ALL in front of the CSV.
+
+--------
+
 ## Version 1.2.34
 
 ### Minor updates - 1.2.34
