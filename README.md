@@ -6,12 +6,13 @@ This bash script will provide the overall cluster status from live `oc` commands
 
 ### Requirements
 
-For live analysis, the `oc` command should be available and logged into the desired cluster.
-
-For the Must-gather analysis, the script use the command `omc` (OpenShift Must-Gather Client)
+* The variable `OC` needs to be set accordingly to the context.
+  * For **live analysis**, it must be set to `oc`. And the `oc` command should be available and logged into the desired cluster.
+  * For **Must-gather analysis**, it must be set to `omc` (OpenShift Must-Gather Client). And the `omc` command should `use` the desired Must-Gather.
 This command should be installed and available in your PATH on your laptop/server. It's available for download from github <https://github.com/gmeghnag/omc/#readme>
-
-The variable `OC` needs to be set accordingly to the context.
+* The `gawk` command is used in some part of the script to manage timestamps
+* The `ipcalc` command is used to confirm that the nodeIPs are included in the `noProxy` config (when defined)
+  * `ipcalc` can be installed on macOS using the command `brew install ipcalc`
 
 ### Installation
 
