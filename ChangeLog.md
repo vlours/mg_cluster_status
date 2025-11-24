@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.36
+
+### Minor updates - 1.2.36
+
+- None
+
+### Release updates - 1.2.36
+
+- (NODE) Fixing a issue when the 'allocatable.ephemeral-storage' is not a simple number but also includes the Unit
+- (ALL) Reformating the 'column' commands and trimming the end of line spaces when using the 'column' command to get better visibility.
+
+--------
+
 ## Version 1.2.35
 
 ### Minor updates - 1.2.35
