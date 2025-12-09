@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.36
+# @VERSION     # 1.2.37
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -481,7 +481,7 @@ then
   if [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Node details"
-    echo "${NODE_JSON}" | jq -r '" |CPU| |Memory| |ephemeral-storage| |POD|OVN|OTHERS|\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|Node Subnet|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(if (.status.allocatable.memory != null) then if (.status.allocatable.memory|split("K")[1] != null) then .status.allocatable.memory else "\((.status.allocatable.memory|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity."ephemeral-storage")|\(if (.status.allocatable."ephemeral-storage" != null) then if (.status.allocatable."ephemeral-storage"|split("K")[1] != null) then .status.allocatable."ephemeral-storage" else "\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity.pods)|\(.metadata.annotations | if (."k8s.ovn.org/node-subnets" != null) then ."k8s.ovn.org/node-subnets" | match("([^=]*):(.*)}") | .captures | .[1].string else "N/A" end)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
+    echo "${NODE_JSON}" | jq -r '" |CPU| |Memory| |ephemeral-storage| |POD|OVN|OTHERS|\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|Node Subnet|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(if (.status.allocatable.memory != null) then if (.status.allocatable.memory|split("K")[1] != null) then .status.allocatable.memory else "\((.status.allocatable.memory|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity."ephemeral-storage")|\(if (.status.allocatable."ephemeral-storage" != null) then if (.status.allocatable."ephemeral-storage"|split("K")[1] != null) then .status.allocatable."ephemeral-storage" else "\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity.pods)|\(.metadata.annotations | if ((."k8s.ovn.org/node-subnets" != null) and (."k8s.ovn.org/node-subnets" != "")) then ."k8s.ovn.org/node-subnets" | match("([^=]*):(.*)}") | .captures | .[1].string else "N/A" end)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -s'|' -t | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
     fct_title_details "Node Conditions (yellow = transition within last ${NODE_TRANSITION_DAYS} days)"
     GAWK_PATH=${GAWK_PATH:-$(which gawk 2>${STD_ERR})}
     if [[ -z ${GAWK_PATH} ]]
@@ -616,7 +616,7 @@ then
   CO_MISS_VERSION_OUTPUT=${CO_MISS_VERSION_OUTPUT:-$(echo ${CO_JSON} | jq -r --arg ClusterVersion "${CLUSTER_VERSION:-"null"}" '.items[] | select((.metadata.ownerReferences != null) and (.metadata.ownerReferences[].kind == "ClusterVersion") and (if (.status.versions != null) then (.status.versions[] | select((.name == "operator") and (.version != $ClusterVersion))) else true end)) | "\(.metadata.name)|\(if(.status.versions != null) then .status.versions[] | select(.name == "operator") | .version else "Unknown" end)"')}
   if [[ ! -z "${CO_MISS_VERSION_OUTPUT}" ]]
   then
-    fct_title "Not Updated Cluster Operators"
+    fct_title "Not Updated Cluster Operators (target version: ${CLUSTER_VERSION})"
     echo -e "NAME|VERSION\n${CO_MISS_VERSION_OUTPUT}" | column -ts'|' | sed -e 's/[ \t]*$//' -e "s/[0-9].[0-9]\{1,2\}.[0-9]\{1,2\}/${redtext}&${resetcolor}/" -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/" -e "s/\(Unknown\)/${yellowtext}\1${resetcolor}/g"
   fi
   CO_NOT_UPGRADEABLE=$(echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '.items[] | if (.status.conditions == null) then "\(.metadata.name)|Unknown|||" else (if ((.status.conditions[] | select(.type == "Upgradeable")| .status) != "True") then "\(.metadata.name)|\(.status.conditions[] | select(.type == "Upgradeable")|"\(.status)|\(if (.reason != null) then .reason else "" end)|\(if (.message != null) then .message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "" end)")" else "" end) end' | column -t)
@@ -882,12 +882,12 @@ then
       ${OC} get configmaps -n ${namespace} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -s '|' -t | tail -5
       echo "--- Installer Pods (up to 10) ---"
       ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
-      INSTALLER_DETAILS=$(echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${namespace} '.items | sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | select((.metadata.namespace == $namespace) and (.metadata.labels.app == "installer")) | "\(.metadata.name)|\(.status.containerStatuses[0]|"\(.name)|\(.restartCount)|\(.state | .[] |  "\(.startedAt)|\(.finishedAt)|\(.reason)")")"'| tail -10)
+      INSTALLER_DETAILS=$(echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${namespace} '.items | sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | select((.metadata.namespace == $namespace) and (.metadata.labels.app == "installer")) | "\(.metadata.name)|\(.status.phase)|\(if (.status.containerStatuses[0] != null) then .status.containerStatuses[0]|"\(.name)|\(.restartCount)|\(.state | .[] |  "\(.startedAt)|\(.finishedAt)|\(.reason)")" else "N/A|N/A|N/A|N/A|N/A" end)"'| tail -10)
       if [[ -z ${INSTALLER_DETAILS} ]]
       then
-        echo "No resources pods.core found in ${namespace} namespace."
+        echo "No resources pods.core matching the 'installer' label found in ${namespace} namespace."
       else
-        echo -e "POD Name|Container Name|restartCount|startedAt|finishedAt|reason\n${INSTALLER_DETAILS}" | column -ts'|' | sed -e 's/[ \t]*$//' -e "s/Completed$/${greentext}&${resetcolor}/" -e "s/Error$/${redtext}&${resetcolor}/"
+        echo -e "POD Name|phase|Container Name|restartCount|startedAt|finishedAt|reason\n${INSTALLER_DETAILS}" | column -ts'|' | sed -e 's/[ \t]*$//' -e "s/Completed$/${greentext}&${resetcolor}/" -e "s/Error$/${redtext}&${resetcolor}/"
       fi
       echo
     done

@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.37
+
+### Minor updates - 1.2.37
+
+- None
+
+### Release updates - 1.2.37
+
+- (NODE) Fixing a issue when the 'k8s.ovn.org/node-subnets' is empty.
+- (OPERATOR) add the reference of the target version when displaying the 'Not Updated' COs.
+- (STATICPOD) Adding the POD '.status.phase' and managing 'Pending' POD in the installer list.
+
+--------
+
 ## Version 1.2.36
 
 ### Minor updates - 1.2.36
