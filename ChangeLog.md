@@ -22,6 +22,7 @@
 
 - (NODE) Fixing a issue when the 'k8s.ovn.org/node-subnets' is empty.
 - (OPERATOR) add the reference of the target version when displaying the 'Not Updated' COs.
+- (OPERATOR) Highlighting the community operators in the CSV and Subscriptions.
 - (STATICPOD) Adding the POD '.status.phase' and managing 'Pending' POD in the installer list.
 
 --------
