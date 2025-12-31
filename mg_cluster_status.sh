@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.37
+# @VERSION     # 1.2.38
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -228,7 +228,7 @@ fct_restart_container_details() {
     fi
     for line in "Container Name+state+restartCount+lastStartedAt+lastEndedAt+exitCode+reason+Message" "--------------+-----+------------+-------------+-----------+--------+------+-------" ${CONTAINER_DETAILS}
     do
-      printf "|-> %-${NAMETAB}s %-12s %-15s %-22s %-22s %-10s %-20s %-${POD_TRUNK}s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7)" "$(echo ${line} | cut -d'+' -f8 | sed -e "s/_/ /g")" | sed -e "s/|-> \([-a-z ]*\)\([0-9]\{3,10\}\)/|-> \1${redtext}\2${resetcolor}/" -e "s/|-> \([-a-z ]*\)\([0-9]\{1,2\}\)/|-> \1${yellowtext}\2${resetcolor}/"
+      printf "|-> %-${NAMETAB}s %-12s %-15s %-22s %-22s %-10s %-20s %-${POD_TRUNK}s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7)" "$(echo ${line} | cut -d'+' -f8 | sed -e "s/_/ /g")" | sed -e "s/|-> \([-a-z ]*\)\([0-9]\{3,10\}\)/|-> \1${redtext}\2${resetcolor}/" -e "s/|-> \([-a-z ]*\)\([0-9]\{1,2\}\)/|-> \1${yellowtext}\2${resetcolor}/" -e "s/[ \t]*$//"
     done
     echo
   done
@@ -278,7 +278,7 @@ STD_ERR="${STD_ERR:-/dev/null}"
 # Content variables not allowing exported content
 unset NODE_JSON NOT_READY KUBELETCONFIG AVAILABLE_MACHINES CLUSTERAUTOSCALER NODE_JSON MACHINESETS_JSON MACHINES_JSON CLUSTER_VERSION CO_MISS_VERSION_OUTPUT UNHEALTHY_OPERATORS MCP_NODE_DEGRADED PROCESSING_MCP DEGRADED_NODES MCO_PODS ALL_SCC_JSON ALL_PODS ALL_PODS_JSON
 # Plateform variables
-Current_time=$(date +%s)
+Current_time=${Current_time:-$(date +%s)}
 case $(uname) in
   "Darwin")
     LAST_28days=$(date -r $[$(date +%s) - 2419200] +%Y-%m)
@@ -462,7 +462,31 @@ then
   fct_title "Network Config"
   ${OC} get network.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .spec
   fct_title "Proxy config"
-  ${OC} get proxy.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .spec
+  PROXY_CONFIG=$(${OC} get proxy.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .spec)
+  if [[ ! -z ${PROXY_CONFIG} ]] && [[ ${PROXY_CONFIG} != "null" ]]
+  then
+    echo "${PROXY_CONFIG}" | sed -e "s/httpProxy: \(.*\)/httpProxy: ${yellowtext}\1${resetcolor}/" -e "s/httpsProxy: \(.*\)/httpsProxy: ${yellowtext}\1${resetcolor}/" -e "s/noProxy: \(.*\)/noProxy: ${yellowtext}\1${resetcolor}/"
+  else
+    echo "No Proxy configured"
+  fi
+  PROXY_CA_CM=$(echo ${PROXY_CONFIG} | jq -r '.trustedCA.name')
+  if [[  ${PROXY_CA_CM} != null ]]
+  then
+    fct_title "Proxy Trusted CA"
+    PROXY_CA_BUNDLE=$(${OC} get configmaps -n openshift-config ${PROXY_CA_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."ca-bundle.crt"')
+    if [[ ! -z ${PROXY_CA_BUNDLE} ]] && [[ "${PROXY_CA_BUNDLE}" != "null" ]]
+    then
+      GAWK_PATH=${GAWK_PATH:-$(which gawk 2>${STD_ERR})}
+      if [[ -z ${GAWK_PATH} ]]
+      then
+        echo "${PROXY_CA_BUNDLE}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns"
+      else
+        echo "${PROXY_CA_BUNDLE}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns" | ${GAWK_PATH} -v current_time=${Current_time} 'function convert_month(month){if(month == "Jan"){converted_month="01"}else if(month == "Feb"){converted_month="02"}else if(month == "Mar"){converted_month="03"}else if(month == "Apr"){converted_month="04"}else if(month == "May"){converted_month="05"}else if(month == "Jun"){converted_month="06"}else if(month == "Jul"){converted_month="07"}else if(month == "Aug"){converted_month="08"}else if(month == "Sep"){converted_month="09"}else if(month == "Oct"){converted_month="10"}else if(month == "Nov"){converted_month="11"}else if(month == "Dec"){converted_month="12"}else{converted_month=month}}{if($2 == "Before:"){convert_month($3);split($5,split_time,":");epoch_time=mktime($6" "converted_month" "$4" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time < epoch_time){print "Y_"$0"_Y"}else{print "G_"$0"_G"}} else if($2 == "After"){convert_month($4);split($6,split_time,":");epoch_time=mktime($7" "converted_month" "$5" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time > epoch_time){print "R_"$0"_R"}else{print "G_"$0"_G"}} else{print}}' | sed -e "s/Y_\(.*\)_Y/${yellowtext}\1${resetcolor}/" -e "s/R_\(.*\)_R/${redtext}\1${resetcolor}/" -e "s/G_\(.*\)_G/${greentext}\1${resetcolor}/"
+      fi
+    else
+      echo "ConfigMap ${PROXY_CONFIG} not found in namespace openshift-config"
+    fi
+  fi
 fi
 
 ########### NODES ###########
@@ -968,7 +992,7 @@ then
     fct_title "firing Alerts"
     echo ${RULES} | jq -r '"RULE|STATE|AGE|ALERTS|ACTIVE SINCE",(if .data != null then (.data[] | select(.state == "firing") | "\(.name)|\(.state)|N/A|\(.alerts | length)|\("\(.alerts | sort_by(.activeAt) | .[0].activeAt[0:19])Z"|fromdate|strftime("%d %b %y %H:%M UTC"))") else "" end)' | column -ts'|' | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/ [5-9]  /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{2,5\}  /${redtext}&${resetcolor}/"
     fct_title "Firing Alerts rules details"
-    echo ${RULES} | jq -r --arg trunk ${ALERT_TRUNK} '"ALERTNAME|LAST ACTIVE|NAMESPACE|OBJECT REFERENCE|SEVERITY|DESCRIPTION|",if .data != null then (.data[] | select(.state == "firing") | .alerts | sort_by(.activeAt) | .[] | "\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node elif (.labels.name != null) then .labels.name elif (.labels.channel != null) then .labels.channel elif (.labels.poddisruptionbudget != null) then .labels.poddisruptionbudget else .labels.service end)|\(.labels.severity)|\(if (.annotations != null) then (if (.annotations.description != null) then .annotations.description[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.message != null) then .annotations.message[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.summary != null) then .annotations.summary[0:($trunk|tonumber)] | sub("\n";" ";"g") else "N/A" end) else "N/A" end)") else "" end' | column -ts'|' | sed -e 's/[ \t]*$//' -e 's/^"//' -e 's/"$//' -e "s/ [Ww]arning /${yellowtext}&${resetcolor}/" -e "s/ [Ii]nfo /${greentext}&${resetcolor}/" -e "s/ [a-zA-Z_]*[Cc]ritical /${redtext}&${resetcolor}/" -e "s/ [Mm]ajor /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*ControlPlane[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*Master[a-zA-Z]* /${purpletext}&${resetcolor}/"
+    echo ${RULES} | jq -r --arg trunk ${ALERT_TRUNK} '"ALERTNAME|LAST ACTIVE|NAMESPACE|OBJECT REFERENCE|SEVERITY|DESCRIPTION|",if .data != null then (.data[] | select(.state == "firing") | .alerts | sort_by(.activeAt) | .[] | "\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node elif (.labels.name != null) then .labels.name elif (.labels.channel != null) then .labels.channel elif (.labels.poddisruptionbudget != null) then .labels.poddisruptionbudget else .labels.service end)|\(.labels.severity)|\(if (.annotations != null) then (if (.annotations.description != null) then .annotations.description[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.message != null) then .annotations.message[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.summary != null) then .annotations.summary[0:($trunk|tonumber)] | sub("\n";" ";"g") else "N/A" end) else "N/A" end)") else "" end' | column -ts'|' | sed -e 's/[ \t]*$//' -e 's/^"//' -e 's/"$//' -e "s/ [Ww]arning /${yellowtext}&${resetcolor}/" -e "s/ [Ii]nfo /${greentext}&${resetcolor}/" -e "s/ [a-zA-Z_]*[Cc]ritical /${redtext}&${resetcolor}/" -e "s/ [Mm]ajor /${redtext}&${resetcolor}/" -e "s/ [Hh]igh /${redtext}&${resetcolor}/" -e "s/ [Dd]isaster /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*ControlPlane[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*Master[a-zA-Z]* /${purpletext}&${resetcolor}/"
   else
     ERR_MSG="Failed to retrieve and display the Alerts"
     fct_title "firing Alerts"
