@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.38
+
+### Minor updates - 1.2.38
+
+- None
+
+### Release updates - 1.2.38
+
+- (CONTEXT) checking the proxy ca-bundle certificate validity
+- (MAIN) Allow to preset 'Current_time' for test purpose
+- (fct_restart_container_details) add a missing trimming the end of line spaces from the awk output
+- (ALERT) highlighting the 'high' and 'disaster' state forthe alerts
+
+--------
+
 ## Version 1.2.37
 
 ### Minor updates - 1.2.37

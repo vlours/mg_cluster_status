@@ -2,3 +2,5 @@
 *.swp
 oc
 .DS_Store
+.github/copilot-instructions.md
+tests/
