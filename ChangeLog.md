@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.39
+
+### Minor updates - 1.2.39
+
+- None
+
+### Release updates - 1.2.39
+
+- (CONTEXT) checking the default ingress and additional API certificates validity
+- (CONTEXT) Highlight missing proxy/cluster ca-bundle CM in Yellow when missing or invalid.
+- (POD) DNS error count, with error per POD in detailled view.
+
+--------
+
 ## Version 1.2.38
 
 ### Minor updates - 1.2.38
