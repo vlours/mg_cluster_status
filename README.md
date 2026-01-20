@@ -2,6 +2,10 @@
 
 This bash script will provide the overall cluster status from live `oc` commands or from a `must-gather`.
 
+## Versions
+
+Please review the [ChangeLog.md](ChangeLog.md) file to learn more about the latest modifications
+
 ## Installation and updates
 
 ### Requirements

@@ -12,6 +12,21 @@
 
 --------
 
+## Version 1.2.40
+
+### Minor updates - 1.2.40
+
+- None
+
+### Release updates - 1.2.40
+
+- (CONTEXT) checking the default (internally generated) ingress certificates validity.
+- (CONTEXT) highlighting expiring (less than 30 days) certificates.
+- (CONTEXT) highlighting the 'baselineCapabilitySet' & 'additionalEnabledCapabilities' capabilities.
+- (EVENT) Count and display the highest numbers of events in namespace(s).
+
+--------
+
 ## Version 1.2.39
 
 ### Minor updates - 1.2.39
@@ -20,7 +35,7 @@
 
 ### Release updates - 1.2.39
 
-- (CONTEXT) checking the default ingress and additional API certificates validity
+- (CONTEXT) checking the custom (externally generated) default ingress and additional API certificates validity
 - (CONTEXT) Highlight missing proxy/cluster ca-bundle CM in Yellow when missing or invalid.
 - (POD) DNS error count, with error per POD in detailled view.
 
