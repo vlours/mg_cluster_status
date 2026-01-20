@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.39
+# @VERSION     # 1.2.40
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -294,6 +294,7 @@ esac
 # Example on Darwin: export Current_time=$(date -ju -f "%Y-%m-%d %H:%M:%S" "2020-05-01 12:00:00" +%s)
 # Example on Linux:  export Current_time=$(date -d "2020-05-01 12:00:00" -u +%s)
 Current_time=${Current_time:-$(date +%s)}
+Expiring_Certs_Days=${Expiring_Certs_Days:-30}
 
 ##### Main
 if [[ $# != 0 ]]
@@ -416,7 +417,7 @@ then
   fct_title "Clusterversion"
   ${OC} get clusterversion.config.openshift.io 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; printf "%s|%s|\n",$5,substr($0,index($0,$6))}' | column -ts'|' | sed -e 's/[ \t]*$//' -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
   fct_title "Clusterversion detailed"
-  ${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}&${resetcolor}/g"
+  ${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}&${resetcolor}/g" -e "s/.*baselineCapabilitySet.*/${redtext}&${resetcolor}/g" -e "s/additionalEnabledCapabilities/${yellowtext}&${resetcolor}/g"
   fct_title "Type of Installation"
   INSTALLER_CM="openshift-install"
   INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config ${INSTALLER_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
@@ -464,37 +465,48 @@ then
   fi
   fct_title "Network Config"
   ${OC} get network.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .spec
+  fct_title "Default Ingress Certificate"
+  ###
+  # Before:  Green  => Valid | Yellow => Not yet valid
+  # After  : Green  => Valid | Yellow => Expiring within 30 days | Red => Expired
+  ###
   INGRESS_CERT_CM=$(${OC} get ingresscontroller.operator.openshift.io -n openshift-ingress-operator default -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.spec.defaultCertificate.name')
-  if [[ ! -z ${INGRESS_CERT_CM} ]] && [[  ${INGRESS_CERT_CM} != null ]]
+  if [[ -z ${INGRESS_CERT_CM} ]] || [[  ${INGRESS_CERT_CM} == null ]]
   then
-    fct_title "Default Ingress Certificate"
-    INGRESS_CERT=$(${OC} get secret -n openshift-ingress ${INGRESS_CERT_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."tls.crt"')
-    if [[ ! -z ${INGRESS_CERT} ]] && [[ "${INGRESS_CERT}" != "null" ]]
+    INGRESS_CERT_CM="router-certs-default"
+  fi
+  INGRESS_CERT=$(${OC} get secret -n openshift-ingress ${INGRESS_CERT_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."tls.crt"')
+  if [[ ! -z ${INGRESS_CERT} ]] && [[ "${INGRESS_CERT}" != "null" ]]
+  then
+    echo -e "### Secret: ${INGRESS_CERT_CM} in namespace openshift-ingress"
+    if [[ -z $(echo "${INGRESS_CERT}" | grep "CERTIFICATE-----") ]]
     then
-      if [[ -z $(echo "${INGRESS_CERT}" | grep "CERTIFICATE-----") ]]
-      then
-        INGRESS_CERT=$(echo "${INGRESS_CERT}" | base64 -d 2>${STD_ERR})
-      fi
-      GAWK_PATH=${GAWK_PATH:-$(which gawk 2>${STD_ERR})}
-      if [[ -z ${GAWK_PATH} ]]
-      then
-        echo "${INGRESS_CERT}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns"
-      else
-        echo "${INGRESS_CERT}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns" | ${GAWK_PATH} -v current_time=${Current_time} 'function convert_month(month){if(month == "Jan"){converted_month="01"}else if(month == "Feb"){converted_month="02"}else if(month == "Mar"){converted_month="03"}else if(month == "Apr"){converted_month="04"}else if(month == "May"){converted_month="05"}else if(month == "Jun"){converted_month="06"}else if(month == "Jul"){converted_month="07"}else if(month == "Aug"){converted_month="08"}else if(month == "Sep"){converted_month="09"}else if(month == "Oct"){converted_month="10"}else if(month == "Nov"){converted_month="11"}else if(month == "Dec"){converted_month="12"}else{converted_month=month}}{if($2 == "Before:"){convert_month($3);split($5,split_time,":");epoch_time=mktime($6" "converted_month" "$4" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time < epoch_time){print "Y_"$0"_Y"}else{print "G_"$0"_G"}} else if($2 == "After"){convert_month($4);split($6,split_time,":");epoch_time=mktime($7" "converted_month" "$5" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time > epoch_time){print "R_"$0"_R"}else{print "G_"$0"_G"}} else{print}}' | sed -e "s/Y_\(.*\)_Y/${yellowtext}\1${resetcolor}/" -e "s/R_\(.*\)_R/${redtext}\1${resetcolor}/" -e "s/G_\(.*\)_G/${greentext}\1${resetcolor}/"
-      fi
-    else
-      echo -e "${yellowtext}WARN: Secret ${INGRESS_CERT_CM} not found in namespace openshift-ingress or has invalid data${resetcolor}"
+      INGRESS_CERT=$(echo "${INGRESS_CERT}" | base64 -d 2>${STD_ERR})
     fi
+    GAWK_PATH=${GAWK_PATH:-$(which gawk 2>${STD_ERR})}
+    if [[ -z ${GAWK_PATH} ]]
+    then
+      echo "${INGRESS_CERT}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns"
+    else
+      echo "${INGRESS_CERT}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns" | ${GAWK_PATH} -v current_time=${Current_time} -v expiring_certs_days=${Expiring_Certs_Days} 'function convert_month(month){if(month == "Jan"){converted_month="01"}else if(month == "Feb"){converted_month="02"}else if(month == "Mar"){converted_month="03"}else if(month == "Apr"){converted_month="04"}else if(month == "May"){converted_month="05"}else if(month == "Jun"){converted_month="06"}else if(month == "Jul"){converted_month="07"}else if(month == "Aug"){converted_month="08"}else if(month == "Sep"){converted_month="09"}else if(month == "Oct"){converted_month="10"}else if(month == "Nov"){converted_month="11"}else if(month == "Dec"){converted_month="12"}else{converted_month=month}}{if($2 == "Before:"){convert_month($3);split($5,split_time,":");epoch_time=mktime($6" "converted_month" "$4" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time < epoch_time){print "Y_"$0"_Y"}else{print "G_"$0"_G"}} else if($2 == "After"){convert_month($4);split($6,split_time,":");epoch_time=mktime($7" "converted_month" "$5" "split_time[1]" "split_time[2]" "split_time[3]); warn_epoch_time=epoch_time - (expiring_certs_days * 86400); if(current_time > epoch_time){print "R_"$0"_R"} else if (current_time > warn_epoch_time) {print "Y_"$0"_Y"} else {print "G_"$0"_G"}} else {print}}' | sed -e "s/Y_\(.*\)_Y/${yellowtext}\1${resetcolor}/" -e "s/R_\(.*\)_R/${redtext}\1${resetcolor}/" -e "s/G_\(.*\)_G/${greentext}\1${resetcolor}/"
+    fi
+  else
+    echo -e "${yellowtext}WARN: Secret ${INGRESS_CERT_CM} not found in namespace openshift-ingress or has invalid data${resetcolor}"
   fi
   API_CERT_CM_LIST=$(${OC} get apiserver.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.spec.servingCerts.namedCertificates[]?.servingCertificate.name')
   if [[ ! -z ${API_CERT_CM_LIST} ]] && [[  ${API_CERT_CM_LIST} != null ]]
   then
     fct_title "Additional API Certificate(s)"
+    ###
+    # Before:  Green  => Valid | Yellow => Not yet valid
+    # After  : Green  => Valid | Yellow => Expiring within 30 days | Red => Expired
+    ###
     for API_CERT_CM in ${API_CERT_CM_LIST}
     do
       API_CERT=$(${OC} get secret -n openshift-config ${API_CERT_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."tls.crt"')
       if [[ ! -z ${API_CERT} ]] && [[ "${API_CERT}" != "null" ]]
       then
+        echo -e "### Secret: ${API_CERT_CM} in namespace openshift-config"
         if [[ -z $(echo "${API_CERT}" | grep "CERTIFICATE-----") ]]
         then
           API_CERT=$(echo "${API_CERT}" | base64 -d 2>${STD_ERR})
@@ -504,7 +516,7 @@ then
         then
           echo "${API_CERT}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns"
         else
-          echo "${API_CERT}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns" | ${GAWK_PATH} -v current_time=${Current_time} 'function convert_month(month){if(month == "Jan"){converted_month="01"}else if(month == "Feb"){converted_month="02"}else if(month == "Mar"){converted_month="03"}else if(month == "Apr"){converted_month="04"}else if(month == "May"){converted_month="05"}else if(month == "Jun"){converted_month="06"}else if(month == "Jul"){converted_month="07"}else if(month == "Aug"){converted_month="08"}else if(month == "Sep"){converted_month="09"}else if(month == "Oct"){converted_month="10"}else if(month == "Nov"){converted_month="11"}else if(month == "Dec"){converted_month="12"}else{converted_month=month}}{if($2 == "Before:"){convert_month($3);split($5,split_time,":");epoch_time=mktime($6" "converted_month" "$4" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time < epoch_time){print "Y_"$0"_Y"}else{print "G_"$0"_G"}} else if($2 == "After"){convert_month($4);split($6,split_time,":");epoch_time=mktime($7" "converted_month" "$5" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time > epoch_time){print "R_"$0"_R"}else{print "G_"$0"_G"}} else{print}}' | sed -e "s/Y_\(.*\)_Y/${yellowtext}\1${resetcolor}/" -e "s/R_\(.*\)_R/${redtext}\1${resetcolor}/" -e "s/G_\(.*\)_G/${greentext}\1${resetcolor}/"
+          echo "${API_CERT}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns" | ${GAWK_PATH} -v current_time=${Current_time}  -v expiring_certs_days=${Expiring_Certs_Days} 'function convert_month(month){if(month == "Jan"){converted_month="01"}else if(month == "Feb"){converted_month="02"}else if(month == "Mar"){converted_month="03"}else if(month == "Apr"){converted_month="04"}else if(month == "May"){converted_month="05"}else if(month == "Jun"){converted_month="06"}else if(month == "Jul"){converted_month="07"}else if(month == "Aug"){converted_month="08"}else if(month == "Sep"){converted_month="09"}else if(month == "Oct"){converted_month="10"}else if(month == "Nov"){converted_month="11"}else if(month == "Dec"){converted_month="12"}else{converted_month=month}}{if($2 == "Before:"){convert_month($3);split($5,split_time,":");epoch_time=mktime($6" "converted_month" "$4" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time < epoch_time){print "Y_"$0"_Y"}else{print "G_"$0"_G"}} else if($2 == "After"){convert_month($4);split($6,split_time,":");epoch_time=mktime($7" "converted_month" "$5" "split_time[1]" "split_time[2]" "split_time[3]); warn_epoch_time=epoch_time - (expiring_certs_days * 86400); if(current_time > epoch_time){print "R_"$0"_R"} else if (current_time > warn_epoch_time) {print "Y_"$0"_Y"} else {print "G_"$0"_G"}} else{print}}' | sed -e "s/Y_\(.*\)_Y/${yellowtext}\1${resetcolor}/" -e "s/R_\(.*\)_R/${redtext}\1${resetcolor}/" -e "s/G_\(.*\)_G/${greentext}\1${resetcolor}/"
         fi
       else
         echo -e "${yellowtext}WARN: Secret ${API_CERT_CM} not found in namespace openshift-config or has invalid data${resetcolor}"
@@ -523,15 +535,20 @@ then
   if [[ ! -z ${PROXY_CA_CM} ]] && [[  ${PROXY_CA_CM} != null ]]
   then
     fct_title "Proxy Trusted CA"
+    ###
+    # Before:  Green  => Valid | Yellow => Not yet valid
+    # After  : Green  => Valid | Yellow => Expiring within 30 days | Red => Expired
+    ###
     PROXY_CA_BUNDLE=$(${OC} get configmaps -n openshift-config ${PROXY_CA_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."ca-bundle.crt"')
     if [[ ! -z ${PROXY_CA_BUNDLE} ]] && [[ "${PROXY_CA_BUNDLE}" != "null" ]]
     then
+      echo -e "### Configmap: ${PROXY_CA_CM} in namespace openshift-config"
       GAWK_PATH=${GAWK_PATH:-$(which gawk 2>${STD_ERR})}
       if [[ -z ${GAWK_PATH} ]]
       then
         echo "${PROXY_CA_BUNDLE}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns"
       else
-        echo "${PROXY_CA_BUNDLE}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns" | ${GAWK_PATH} -v current_time=${Current_time} 'function convert_month(month){if(month == "Jan"){converted_month="01"}else if(month == "Feb"){converted_month="02"}else if(month == "Mar"){converted_month="03"}else if(month == "Apr"){converted_month="04"}else if(month == "May"){converted_month="05"}else if(month == "Jun"){converted_month="06"}else if(month == "Jul"){converted_month="07"}else if(month == "Aug"){converted_month="08"}else if(month == "Sep"){converted_month="09"}else if(month == "Oct"){converted_month="10"}else if(month == "Nov"){converted_month="11"}else if(month == "Dec"){converted_month="12"}else{converted_month=month}}{if($2 == "Before:"){convert_month($3);split($5,split_time,":");epoch_time=mktime($6" "converted_month" "$4" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time < epoch_time){print "Y_"$0"_Y"}else{print "G_"$0"_G"}} else if($2 == "After"){convert_month($4);split($6,split_time,":");epoch_time=mktime($7" "converted_month" "$5" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time > epoch_time){print "R_"$0"_R"}else{print "G_"$0"_G"}} else{print}}' | sed -e "s/Y_\(.*\)_Y/${yellowtext}\1${resetcolor}/" -e "s/R_\(.*\)_R/${redtext}\1${resetcolor}/" -e "s/G_\(.*\)_G/${greentext}\1${resetcolor}/"
+        echo "${PROXY_CA_BUNDLE}" | openssl crl2pkcs7 -nocrl -certfile /dev/stdin | openssl pkcs7 -print_certs -text -noout |  grep -iEA4 "Issuer:|dns" | ${GAWK_PATH} -v current_time=${Current_time}  -v expiring_certs_days=${Expiring_Certs_Days} 'function convert_month(month){if(month == "Jan"){converted_month="01"}else if(month == "Feb"){converted_month="02"}else if(month == "Mar"){converted_month="03"}else if(month == "Apr"){converted_month="04"}else if(month == "May"){converted_month="05"}else if(month == "Jun"){converted_month="06"}else if(month == "Jul"){converted_month="07"}else if(month == "Aug"){converted_month="08"}else if(month == "Sep"){converted_month="09"}else if(month == "Oct"){converted_month="10"}else if(month == "Nov"){converted_month="11"}else if(month == "Dec"){converted_month="12"}else{converted_month=month}}{if($2 == "Before:"){convert_month($3);split($5,split_time,":");epoch_time=mktime($6" "converted_month" "$4" "split_time[1]" "split_time[2]" "split_time[3]); if(current_time < epoch_time){print "Y_"$0"_Y"}else{print "G_"$0"_G"}} else if($2 == "After"){convert_month($4);split($6,split_time,":");epoch_time=mktime($7" "converted_month" "$5" "split_time[1]" "split_time[2]" "split_time[3]); warn_epoch_time=epoch_time - (expiring_certs_days * 86400); if(current_time > epoch_time){print "R_"$0"_R"} else if (current_time > warn_epoch_time) {print "Y_"$0"_Y"} else {print "G_"$0"_G"}} else{print}}' | sed -e "s/Y_\(.*\)_Y/${yellowtext}\1${resetcolor}/" -e "s/R_\(.*\)_R/${redtext}\1${resetcolor}/" -e "s/G_\(.*\)_G/${greentext}\1${resetcolor}/"
       fi
     else
       echo -e "${yellowtext}WARN: ConfigMap ${PROXY_CA_CM} not found in namespace openshift-config or has invalid data${resetcolor}"
@@ -801,15 +818,23 @@ fi
 ########### EVENTS ###########
 if [[ ! -z ${EVENTS} ]] || [[ ! -z ${ALL} ]]
 then
-  fct_header "DEFAULT EVENTS"
+  fct_header "EVENTS"
   EVENT_NAMESPACE=${NAMESPACE:-"default"}
   if [[ -z ${DETAILS} ]]
   then
     fct_title "Events in ${EVENT_NAMESPACE} namespace (last ${TAIL_LOG} lines)"
-    ${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | column -ts'|' | sed -e 's/[ \t]*$//' | tail -${TAIL_LOG}
+    echo -e "creationTimestamp | Name | Reason | Host | Component | Message\n$(${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))"' | tail -${TAIL_LOG})" | column -ts'|' | sed -e 's/[ \t]*$//'
   else
     fct_title "Events in ${EVENT_NAMESPACE} namespace"
     ${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | column -ts'|' | sed -e 's/[ \t]*$//'
+  fi
+  if [[ ${EVENT_NAMESPACE} == "default" ]]
+  then
+    fct_title "Count of Events by Namespace/Reason/Component in ALL namespaces (${TAIL_LOG} lines)"
+    ${OC} get events -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | column -ts'|' | sed -e 's/[ \t]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
+  else
+    fct_title "Count of Events by Namespace/Reason/Component in ${EVENT_NAMESPACE} namespace (${TAIL_LOG} lines)"
+    ${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | column -ts'|' | sed -e 's/[ \t]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
   fi
 fi
 ########### SCC ###########
