@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.41
+
+### Minor updates - 1.2.41
+
+- None
+
+### Release updates - 1.2.41
+
+- (POD) Displaying/highlighting the initContainers details if the POD is failing from the init.
+- (MCO) limit the 'true' highlight for the kubeletconfig for the 'autoSizingReserved' only.
+
+--------
+
 ## Version 1.2.40
 
 ### Minor updates - 1.2.40
