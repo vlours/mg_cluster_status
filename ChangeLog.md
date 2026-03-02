@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.42
+
+### Minor updates - 1.2.42
+
+- None
+
+### Release updates - 1.2.42
+
+- (CONTEXT) Updated the install methode case, detecting ARO/ROSA clusters.
+- (CONTEXT) Moving the featuregate and infrastructure before the installation type.
+- (MAIN) Adding missing stderr redirection '2>${STD_ERR}' from commands
+
+--------
+
 ## Version 1.2.41
 
 ### Minor updates - 1.2.41
