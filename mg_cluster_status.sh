@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.41
+# @VERSION     # 1.2.42
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -418,6 +418,11 @@ then
   ${OC} get clusterversion.config.openshift.io 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; printf "%s|%s|\n",$5,substr($0,index($0,$6))}' | column -ts'|' | sed -e 's/[ \t]*$//' -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
   fct_title "Clusterversion detailed"
   ${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}&${resetcolor}/g" -e "s/.*baselineCapabilitySet.*/${redtext}&${resetcolor}/g" -e "s/additionalEnabledCapabilities/${yellowtext}&${resetcolor}/g"
+  fct_title "FeatureGate"
+  ${OC} get FeatureGate.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '{"featureSet": .spec.featureSet}' | sed -e "s/TechPreviewNoUpgrade/${redtext}&${resetcolor}/g"
+  fct_title "Infrastructure"
+  INFRA_JSON=$(${OC} get infrastructures.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+  echo "${INFRA_JSON}" | jq -r '.status'
   fct_title "Type of Installation"
   INSTALLER_CM="openshift-install"
   INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config ${INSTALLER_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
@@ -427,32 +432,50 @@ then
     INSTALLER_INVOKER=$(${OC} get configmaps -n openshift-config ${INSTALLER_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .data.invoker)
   fi
   case ${INSTALLER_INVOKER} in
-    "agent-installer"|"infrastructure-operator"|"assisted-installer"|"hive")
-      INSTALL_TYPE=${INSTALLER_INVOKER}
+    "agent-installer"|"assisted-installer")
+      INSTALL_TYPE="${greentext}${INSTALLER_INVOKER}${resetcolor}"
+      ;;
+    "assisted-installer-operator"|"infrastructure-operator")
+      INSTALL_TYPE="${greentext}infrastructure-operator${resetcolor}"
+      ;;
+    "hive")
+      INFRA_PLATFORM=$(echo "${INFRA_JSON}" | jq -r '.status.platform')
+      if [[ ${INFRA_PLATFORM} == "AWS" ]]
+      then
+        INSTALL_TYPE="${greentext}hive${resetcolor} (${yellowtext}ROSA${resetcolor})"
+      else
+        if [[ ${INFRA_PLATFORM} == "Azure" ]]
+        then
+          INSTALL_TYPE="${greentext}hive${resetcolor} (${yellowtext}ARO${resetcolor})"
+        else
+          INSTALL_TYPE="${greentext}hive${resetcolor}"
+        fi
+      fi
       ;;
     "hypershift"|"ROKS")
-      INSTALL_TYPE="hypershift"
+      INSTALL_TYPE="${greentext}hypershift${resetcolor}"
       ;;
     "null")
-      INSTALL_TYPE="unknown"
+      INSTALL_TYPE="${redtext}unknown${resetcolor}"
       ;;
     "openshift-install")
-      INSTALL_TYPE="ipi"
+      INSTALL_TYPE="${greentext}ipi${resetcolor}"
       ;;
     *)
       if [[ ${INSTALLER_CM} == "openshift-install" ]]
       then
-        INSTALL_TYPE="ipi"
+        INSTALL_TYPE="${greentext}ipi${resetcolor}"
       else
-        INSTALL_TYPE="upi"
+        if [[ ${INSTALLER_INVOKER} == "ARO" ]]
+        then
+          INSTALL_TYPE="${greentext}ipi${resetcolor} (${yellowtext}ARO${resetcolor})"
+        else
+          INSTALL_TYPE="${greentext}upi${resetcolor}"
+        fi
       fi
       ;;
   esac
-  echo "Install Type: ${INSTALL_TYPE}"
-  fct_title "FeatureGate"
-  ${OC} get FeatureGate.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '{"featureSet": .spec.featureSet}' | sed -e "s/TechPreviewNoUpgrade/${redtext}&${resetcolor}/g"
-  fct_title "Infrastructure"
-  ${OC} get infrastructures.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .status
+  echo -e "Install Type: ${INSTALL_TYPE}"
   ALL_PODS=${ALL_PODS:-$(${OC} get pods -A ${WIDE_OPTION} 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   NB_KEEPALIVE_PODS=$(echo "${ALL_PODS}" | awk 'BEGIN{count=0};{if(($1 ~ "openshift-[-a-z]*-infra") && ($2 ~ "keepalived")){count++}};END{print count}')
   if [[ ${NB_KEEPALIVE_PODS} -gt 0 ]]
@@ -475,7 +498,7 @@ then
   then
     INGRESS_CERT_CM="router-certs-default"
   fi
-  INGRESS_CERT=$(${OC} get secret -n openshift-ingress ${INGRESS_CERT_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."tls.crt"')
+  INGRESS_CERT=$(${OC} get secret -n openshift-ingress ${INGRESS_CERT_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."tls.crt"')
   if [[ ! -z ${INGRESS_CERT} ]] && [[ "${INGRESS_CERT}" != "null" ]]
   then
     echo -e "### Secret: ${INGRESS_CERT_CM} in namespace openshift-ingress"
@@ -503,7 +526,7 @@ then
     ###
     for API_CERT_CM in ${API_CERT_CM_LIST}
     do
-      API_CERT=$(${OC} get secret -n openshift-config ${API_CERT_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."tls.crt"')
+      API_CERT=$(${OC} get secret -n openshift-config ${API_CERT_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."tls.crt"')
       if [[ ! -z ${API_CERT} ]] && [[ "${API_CERT}" != "null" ]]
       then
         echo -e "### Secret: ${API_CERT_CM} in namespace openshift-config"
@@ -539,7 +562,7 @@ then
     # Before:  Green  => Valid | Yellow => Not yet valid
     # After  : Green  => Valid | Yellow => Expiring within 30 days | Red => Expired
     ###
-    PROXY_CA_BUNDLE=$(${OC} get configmaps -n openshift-config ${PROXY_CA_CM} -o json | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."ca-bundle.crt"')
+    PROXY_CA_BUNDLE=$(${OC} get configmaps -n openshift-config ${PROXY_CA_CM} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION} " | jq -r '.data."ca-bundle.crt"')
     if [[ ! -z ${PROXY_CA_BUNDLE} ]] && [[ "${PROXY_CA_BUNDLE}" != "null" ]]
     then
       echo -e "### Configmap: ${PROXY_CA_CM} in namespace openshift-config"
@@ -587,7 +610,7 @@ then
     if [[ "${OC}" != "omg" ]] && [[ "${OC}" != "omc" ]]
     then
       fct_title_details "Node overcommitment"
-      ${OC} describe nodes | awk 'BEGIN{ovnsubnet="";printf " |%s| | | | |%s| | | | |%s| |%s\n%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n","CPU","MEM","PODs","OVN","NODENAME","Allocatable","Request","(%)","Limit","(%)","Allocatable","Request","(%)","Limit","(%)","Allocatable","Running","Node Subnet"}{if($1 == "Name:"){name=$2};if($1 == "k8s.ovn.org/node-subnets:"){ovnsubnet=$2};if($1 ~ "Allocatable:"){while($1 != "System"){if($1 == "cpu:"){Alloc_cpu=$2};if($1 == "memory:"){Alloc_mem=$2};if($1 == "pods:"){Alloc_pod=$2};getline}};if($1 == "Namespace"){getline;getline;pods_count=0;while($1 != "Allocated"){pods_count++;getline}};if($1 == "Resource"){while($1 != "Events:"){if($1 == "cpu"){req_cpu=$2;preq_cpu=$3;lim_cpu=$4;plim_cpu=$5};if($1 == "memory"){req_mem=$2;preq_mem=$3;lim_mem=$4;plim_mem=$5};getline};printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",name,Alloc_cpu,req_cpu,preq_cpu,lim_cpu,plim_cpu,Alloc_mem,req_mem,preq_mem,lim_mem,plim_mem,Alloc_pod,pods_count,ovnsubnet}}' | sed -e "s/{\"default\":\[\{0,1\}\"\([.\/0-9]*\)\"\]\{0,1\}\]}/\1/" | column -ts'|' | sed -e "s/([0-9]\{3,4\}%)/${redtext}&${resetcolor}/g" -e "s/(1[0-9]\{2\}%)/${yellowtext}&${resetcolor}/g"
+      ${OC} describe nodes 2>${STD_ERR} | awk 'BEGIN{ovnsubnet="";printf " |%s| | | | |%s| | | | |%s| |%s\n%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n","CPU","MEM","PODs","OVN","NODENAME","Allocatable","Request","(%)","Limit","(%)","Allocatable","Request","(%)","Limit","(%)","Allocatable","Running","Node Subnet"}{if($1 == "Name:"){name=$2};if($1 == "k8s.ovn.org/node-subnets:"){ovnsubnet=$2};if($1 ~ "Allocatable:"){while($1 != "System"){if($1 == "cpu:"){Alloc_cpu=$2};if($1 == "memory:"){Alloc_mem=$2};if($1 == "pods:"){Alloc_pod=$2};getline}};if($1 == "Namespace"){getline;getline;pods_count=0;while($1 != "Allocated"){pods_count++;getline}};if($1 == "Resource"){while($1 != "Events:"){if($1 == "cpu"){req_cpu=$2;preq_cpu=$3;lim_cpu=$4;plim_cpu=$5};if($1 == "memory"){req_mem=$2;preq_mem=$3;lim_mem=$4;plim_mem=$5};getline};printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",name,Alloc_cpu,req_cpu,preq_cpu,lim_cpu,plim_cpu,Alloc_mem,req_mem,preq_mem,lim_mem,plim_mem,Alloc_pod,pods_count,ovnsubnet}}' | sed -e "s/{\"default\":\[\{0,1\}\"\([.\/0-9]*\)\"\]\{0,1\}\]}/\1/" | column -ts'|' | sed -e "s/([0-9]\{3,4\}%)/${redtext}&${resetcolor}/g" -e "s/(1[0-9]\{2\}%)/${yellowtext}&${resetcolor}/g"
     fi
   fi
 
@@ -756,7 +779,7 @@ then
   if [[ ! -z "${PROCESSING_MCP}" ]] && [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Processing MCP - machine-config-controller log"
-    ${OC} logs -n openshift-machine-config-operator $(${OC} get pods -n openshift-machine-config-operator -l k8s-app=machine-config-controller -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}") -c machine-config-controller | grep -Ev "template_controller.go" | tail -${TAIL_LOG} | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
+    ${OC} logs -n openshift-machine-config-operator $(${OC} get pods -n openshift-machine-config-operator -l k8s-app=machine-config-controller -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}") -c machine-config-controller 2>${STD_ERR} | grep -Ev "template_controller.go" | tail -${TAIL_LOG} | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g"
   fi
   fct_title "Latest MachineConfigs"
   MC_JSON=$(${OC} get machineconfig.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
@@ -788,7 +811,7 @@ then
       if [[ ! -z ${pod_name} ]]
       then
         fct_title_details "${DEGRADED_NODE} - ${pod_name} log (last ${TAIL_LOG} lines)"
-        ${OC} logs -n openshift-machine-config-operator ${pod_name} -c machine-config-daemon | tail -${TAIL_LOG}
+        ${OC} logs -n openshift-machine-config-operator ${pod_name} -c machine-config-daemon 2>${STD_ERR} | tail -${TAIL_LOG}
       fi
     done
   fi
@@ -954,7 +977,7 @@ then
         NAMESPACE=$(echo ${pod_details} | cut -d'/' -f1)
         POD=$(echo ${pod_details} | cut -d'/' -f2)
         NODE=$(echo ${pod_details} | cut -d'/' -f3)
-        DNS_ERRORS=$(${OC} logs -n openshift-dns -c dns ${POD} | grep ERROR | cut -d'>' -f2 | sort |uniq -c | sed -e "s/^\( *\)\([0-9]*\) /|-> \2#/")
+        DNS_ERRORS=$(${OC} logs -n openshift-dns -c dns ${POD} 2>${STD_ERR}| grep ERROR | cut -d'>' -f2 | sort |uniq -c | sed -e "s/^\( *\)\([0-9]*\) /|-> \2#/")
         if [[ ! -z ${DNS_ERRORS} ]]
         then
           printf "%-32s%-32s%-32s\n" ${NAMESPACE} ${POD} ${NODE}
