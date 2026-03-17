@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.43
+
+### Minor updates - 1.2.43
+
+- None
+
+### Release updates - 1.2.43
+
+- (MACHINE) adding the ControlPlaneMachineSet resources monitoring.
+- (ETCD) displaying the member list.
+- (ALL) replacing the sed `'s/[ \t]*$//'` with `'s/[ ]*$//'` to avoid removing the last letter if it is a `t`.
+
+--------
+
 ## Version 1.2.42
 
 ### Minor updates - 1.2.42
