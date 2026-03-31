@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.44
+
+### Minor updates - 1.2.44
+
+- None
+
+### Release updates - 1.2.44
+
+- (NODE) Fixed bug not displaying OVN IPv6 format correctly in the Node details section
+- (POD) Improve DNS error display, limiting the number of error messages based on the value of the 'TAIL_LOG' variable.
+
+--------
+
 ## Version 1.2.43
 
 ### Minor updates - 1.2.43
