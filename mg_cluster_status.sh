@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.43
+# @VERSION     # 1.2.44
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -231,6 +231,28 @@ fct_restart_container_details() {
       printf "|-> %-${NAMETAB}s %-12s %-15s %-22s %-22s %-10s %-20s %-${POD_TRUNK}s\n" "$(echo ${line} | cut -d'+' -f1)" "$(echo ${line} | cut -d'+' -f2)" "$(echo ${line} | cut -d'+' -f3)" "$(echo ${line} | cut -d'+' -f4)" "$(echo ${line} | cut -d'+' -f5)" "$(echo ${line} | cut -d'+' -f6)" "$(echo ${line} | cut -d'+' -f7)" "$(echo ${line} | cut -d'+' -f8 | sed -e "s/_/ /g")" | sed -e "s/|-> \([-a-z ]*\)\([0-9]\{3,10\}\)/|-> \1${redtext}\2${resetcolor}/" -e "s/|-> \([-a-z ]*\)\([0-9]\{1,2\}\)/|-> \1${yellowtext}\2${resetcolor}/" -e "s/[ \t]*$//"
     done
     echo
+  done
+}
+
+fct_dns_pod_errors()
+{
+  for pod_details in $(echo "${ALL_PODS_JSON}" | jq -r '.items[] | select((.metadata.namespace == "openshift-dns") and (.metadata.labels."dns.operator.openshift.io/daemonset-dns" == "default")) | "\(.metadata.namespace)/\(.metadata.name)/\(.spec.nodeName)"')
+  do
+    NAMESPACE=$(echo ${pod_details} | cut -d'/' -f1)
+    POD=$(echo ${pod_details} | cut -d'/' -f2)
+    NODE=$(echo ${pod_details} | cut -d'/' -f3)
+    DNS_ERRORS=$(${OC} logs -n openshift-dns -c dns ${POD} 2>${STD_ERR}| grep ERROR | cut -d'>' -f2 | sort |uniq -c | sort -rn)
+    DNS_POD_ERRORS_COUNT=$(echo "${DNS_ERRORS}" | awk '{total+=$1}END{print total}')
+    if [[ ! -z ${DNS_ERRORS} ]]
+    then
+      printf "%-32s%-32s%-32s%16d\n" ${NAMESPACE} ${POD} ${NODE} ${DNS_POD_ERRORS_COUNT}
+      if [[ -z $TAIL_LOG ]]
+      then
+        echo -e "|-> count#error message\n|-> -----#-------------\n$(echo "${DNS_ERRORS}" | sed -e "s/^\( *\)\([0-9]*\) /|-> \2#/")\n" | column -ts'#'
+      else
+        echo -e "|-> count#error message\n|-> -----#-------------\n$(echo "${DNS_ERRORS}" | sed -e "s/^\( *\)\([0-9]*\) /|-> \2#/")\n" | head -${TAIL_LOG} | column -ts'#'
+      fi
+    fi
   done
 }
 
@@ -595,7 +617,7 @@ then
   if [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Node details"
-    echo "${NODE_JSON}" | jq -r '" |CPU| |Memory| |ephemeral-storage| |POD|OVN|OTHERS|\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|Node Subnet|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(if (.status.allocatable.memory != null) then if (.status.allocatable.memory|split("K")[1] != null) then .status.allocatable.memory else "\((.status.allocatable.memory|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity."ephemeral-storage")|\(if (.status.allocatable."ephemeral-storage" != null) then if (.status.allocatable."ephemeral-storage"|split("K")[1] != null) then .status.allocatable."ephemeral-storage" else "\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity.pods)|\(.metadata.annotations | if ((."k8s.ovn.org/node-subnets" != null) and (."k8s.ovn.org/node-subnets" != "")) then ."k8s.ovn.org/node-subnets" | match("([^=]*):(.*)}") | .captures | .[1].string else "N/A" end)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -ts'|' | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
+    echo "${NODE_JSON}" | jq -r '" |CPU| |Memory| |ephemeral-storage| |POD|OVN|OTHERS|\nNodename|Capacity|Allocatable|Capacity|Allocatable|Capacity|Allocatable|pods|Node Subnet|hugepages-1Gi|hugepages-2Mi|Taints",(.items | sort_by(.metadata.name)|.[]|"\(.metadata.name)|\(.status.capacity.cpu)|\(.status.allocatable.cpu)|\(.status.capacity.memory)|\(if (.status.allocatable.memory != null) then if (.status.allocatable.memory|split("K")[1] != null) then .status.allocatable.memory else "\((.status.allocatable.memory|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity."ephemeral-storage")|\(if (.status.allocatable."ephemeral-storage" != null) then if (.status.allocatable."ephemeral-storage"|split("K")[1] != null) then .status.allocatable."ephemeral-storage" else "\((.status.allocatable."ephemeral-storage"|tonumber)/1024|round)Ki" end else "Unknown" end)|\(.status.capacity.pods)|\(.metadata.annotations | if ((."k8s.ovn.org/node-subnets" != null) and (."k8s.ovn.org/node-subnets" != "")) then ."k8s.ovn.org/node-subnets" | match("([^=]*)\":(.*)}") | .captures | .[1].string else "N/A" end)|\(.status.capacity."hugepages-1Gi")|\(.status.capacity."hugepages-2Mi")|\(if(.spec.taints != null) then [.spec.taints[]] else "null" end)")'| column -ts'|' | sed -e "s/master/${cyantext}&${resetcolor}/g" -e "s/worker/${purpletext}&${resetcolor}/g" -e "s/infra/${yellowtext}&${resetcolor}/g" -e "s/node.kubernetes.io\/[a-z\-]*/${redtext}&${resetcolor}/g"
     fct_title_details "Node Conditions (yellow = transition within last ${NODE_TRANSITION_DAYS} days)"
     GAWK_PATH=${GAWK_PATH:-$(which gawk 2>${STD_ERR})}
     if [[ -z ${GAWK_PATH} ]]
@@ -1001,27 +1023,15 @@ then
       echo "${ALL_PODS}" | awk -v min_restart=${MIN_RESTART} '($4 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
     fi
   fi
-  DNS_POD_DETAILS=$(for pod_details in $(echo "${ALL_PODS_JSON}" | jq -r '.items[] | select((.metadata.namespace == "openshift-dns") and (.metadata.labels."dns.operator.openshift.io/daemonset-dns" == "default")) | "\(.metadata.namespace)/\(.metadata.name)/\(.spec.nodeName)"')
-      do
-        NAMESPACE=$(echo ${pod_details} | cut -d'/' -f1)
-        POD=$(echo ${pod_details} | cut -d'/' -f2)
-        NODE=$(echo ${pod_details} | cut -d'/' -f3)
-        DNS_ERRORS=$(${OC} logs -n openshift-dns -c dns ${POD} 2>${STD_ERR}| grep ERROR | cut -d'>' -f2 | sort |uniq -c | sed -e "s/^\( *\)\([0-9]*\) /|-> \2#/")
-        if [[ ! -z ${DNS_ERRORS} ]]
-        then
-          printf "%-32s%-32s%-32s\n" ${NAMESPACE} ${POD} ${NODE}
-          echo -e "|-> count#error message\n|-> -----#-------------\n${DNS_ERRORS}\n" | column -ts'#'
-        fi
-      done)
-  DNS_POD_ERRORS_COUNT=$(echo "${DNS_POD_DETAILS}" | awk 'BEGIN{total=0}{if(($1 == "|->")&&($2 ~ /[0-9]*/)){total+=$2}}END{print total}')
-  if [[ ${DNS_POD_ERRORS_COUNT} -gt 0 ]]
+  DNS_POD_DETAILS=$(fct_dns_pod_errors)
+  DNS_TOTAL_ERRORS_COUNT=$(echo "${DNS_POD_DETAILS}" | grep -Ev "^$|\|->" | awk '{sum += $4} END {print sum}')
+  if [[ ${DNS_TOTAL_ERRORS_COUNT} -gt 0 ]]
   then
-    DNS_ERROR_THRESHOLD=${DNS_ERROR_THRESHOLD:-1000}
     fct_title "DNS Pod Errors (openshift-dns namespace)"
-    echo "Total DNS errors across all DNS pods: ${DNS_POD_ERRORS_COUNT}" | sed -e "s/: \([0-9]\{3\}\)$/: ${yellowtext}\1${resetcolor}/" -e "s/: \([0-9]\{4,10\}\)$/: ${redtext}\1${resetcolor}/"
+    echo "Total DNS errors across all DNS pods: ${DNS_TOTAL_ERRORS_COUNT}" | sed -e "s/: \([0-9]\{3\}\)$/: ${yellowtext}\1${resetcolor}/" -e "s/: \([0-9]\{4,10\}\)$/: ${redtext}\1${resetcolor}/"
     if [[ ! -z ${DETAILS} ]]
     then
-      printf "\n%-32s%-32s%-32s\n" "NAMESPACE" "POD NAME" "NODE NAME"
+      printf "\n%-32s%-32s%-32s%-32s\n" "NAMESPACE" "POD NAME" "NODE NAME" "DNS ERRORS COUNT"
       echo "${DNS_POD_DETAILS}" | sed -e "s/^|-> \([0-9]\{3\}\) /|-> ${yellowtext}\1${resetcolor} /" -e "s/^|-> \([0-9]\{4,10\}\) /|-> ${redtext}\1${resetcolor} /"
     fi
   fi
