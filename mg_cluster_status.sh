@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.44
+# @VERSION     # 1.2.45
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -277,6 +277,8 @@ DEFAULT_purpletext="\x1B[35m"
 DEFAULT_cyantext="\x1B[36m"
 DEFAULT_whitetext="\x1B[37m"
 DEFAULT_resetcolor="\x1B[0m"
+DEFAULT_MAX_OBJECT_COUNT=1000
+DEFAULT_MAX_OBJECT_SIZE=104857600 # 100Mi in bytes
 # Defining a Variable to exclude all of the undesired messages from omc, oc, ...
 MESSAGE_EXCLUSION="^$|^No resources|^resource type|^Error from server (NotFound):"
 # Source URLs & version time_gap
@@ -317,6 +319,10 @@ esac
 # Example on Linux:  export Current_time=$(date -d "2020-05-01 12:00:00" -u +%s)
 Current_time=${Current_time:-$(date +%s)}
 Expiring_Certs_Days=${Expiring_Certs_Days:-30}
+
+# Limits for the ETCD checks:
+MAX_OBJECT_COUNT=${MAX_OBJECT_COUNT:-${DEFAULT_MAX_OBJECT_COUNT}}
+MAX_OBJECT_SIZE=${MAX_OBJECT_SIZE:-${DEFAULT_MAX_OBJECT_SIZE}}
 
 ##### Main
 if [[ $# != 0 ]]
@@ -475,7 +481,13 @@ then
       fi
       ;;
     "hypershift"|"ROKS")
-      INSTALL_TYPE="${greentext}hypershift${resetcolor}"
+      INFRA_CLUSTER_TYPE=$(echo "${INFRA_JSON}" | jq -r '.status.platformStatus.aws.resourceTags[]? | select(.key == "red-hat-clustertype") | .value')
+      if [[ ${INFRA_CLUSTER_TYPE} == "rosa" ]]
+      then
+        INSTALL_TYPE="${greentext}hypershift${resetcolor} (${yellowtext}ROSA${resetcolor})"
+      else
+        INSTALL_TYPE="${greentext}hypershift${resetcolor}"
+      fi
       ;;
     "null")
       INSTALL_TYPE="${redtext}unknown${resetcolor}"
@@ -777,6 +789,15 @@ then
     fct_title "Unhealthy Cluster Operators"
     echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '"|NAME|VERSION|AVAILABLE|PROGRESSING|DEGRADED|LASTTRANSTION|MESSAGE",(.items[] | "|\(.metadata.name)|\(if(.status.versions != null) then (.status.versions[] | select(.name == "operator") | .version) else " " end)|\(if(.status.conditions != null) then ("\(.status.conditions[] | select(.type == "Available") | .status)|\(.status.conditions[] | select(.type == "Progressing") | .status)|\(.status.conditions[] | select(.type == "Degraded") | .status)|\(.status.conditions | if(.[]|select(.type == "Degraded") | (.message != null) and (.status == "True")) then .[]|select(.type == "Degraded") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) elif (.[]|select(.type == "Progressing") | (.message != null) and (.status == "True")) then .[]|select(.type == "Progressing") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) elif (.[]|select(.type == "Available") | (.message != null) and (.status == "True")) then .[]|select(.type == "Available") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) else " | " end)") else "Unknown|Unknown|Unknown| " end)|")' 2>${STD_ERR} | grep -v "True|False|False" | awk -F'|' '{printf "%s|%s|",$2,$3; if($4 == "AVAILABLE"){printf "%s|",$4} else if($4 == "True"){printf "G%s|",$4}else{printf "R%s|",$4}; if($5 == "PROGRESSING"){printf "%s|",$5} else if($5 == "True"){printf "Y%s|",$5}else{printf "G%s|",$5}; if($6 == "DEGRADED"){printf "%s|",$6} else if($6 == "True"){printf "R%s|",$6}else{printf "G%s|",$6}; printf "%s|%s\n",$7,$8}' | column -ts'|' | sed -e 's/[ ]*$//' -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g" -e "s/[RG]\(Unknown\)/${yellowtext}\1 ${resetcolor}/g"
   fi
+  UNHEALTHY_OPERATORS=${UNHEALTHY_OPERATORS:-$(echo ${CO_JSON} | jq -r '.items[] | select((.status.conditions == null) or (.status.conditions[] | ((.type == "Available") and (.status != "True")) or ((.type == "Progressing") and (.status != "False")) or ((.type == "Degraded") and (.status != "False")))) | .metadata.name' 2>${STD_ERR} | sort -u)}
+  if [[ ! -z ${DETAILS} ]] && [[ ! -z ${UNHEALTHY_OPERATORS} ]]
+  then
+    fct_title_details "Unhealthy Cluster Operators - Details"
+    for OPERATOR in ${UNHEALTHY_OPERATORS}
+    do
+      echo ${CO_JSON} | jq -r --arg Operator ${OPERATOR} '.items[] | select(.metadata.name == $Operator) | "---- " + .metadata.name + " conditions ----",(if (.status.conditions != null) then {status: {conditions: [(.status.conditions[] | select((.type == "Available") or (.type == "Progressing") or (.type == "Degraded")))]}} else {status: {conditions: null}} end)'
+    done
+  fi
   CLUSTER_VERSION=${CLUSTER_VERSION:-$(${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .status.desired.version 2>${STD_ERR})}
   CO_MISS_VERSION_OUTPUT=${CO_MISS_VERSION_OUTPUT:-$(echo ${CO_JSON} | jq -r --arg ClusterVersion "${CLUSTER_VERSION:-"null"}" '.items[] | select((.metadata.ownerReferences != null) and (.metadata.ownerReferences[].kind == "ClusterVersion") and (if (.status.versions != null) then (.status.versions[] | select((.name == "operator") and (.version != $ClusterVersion))) else true end)) | "\(.metadata.name)|\(if(.status.versions != null) then .status.versions[] | select(.name == "operator") | .version else "Unknown" end)"')}
   if [[ ! -z "${CO_MISS_VERSION_OUTPUT}" ]]
@@ -790,15 +811,25 @@ then
     fct_title "Not Upgradeable Cluster Operators"
     echo -e "NAME|UPGRADEABLE|REASON|MESSAGE\n${CO_NOT_UPGRADEABLE}" | sed -e "s/  */ /g" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/" -e "s/\(False\)/${yellowtext}\1${resetcolor}/g" -e "s/\(Unknown\)/${yellowtext}\1${resetcolor}/g"
   fi
-  UNHEALTHY_OPERATORS=${UNHEALTHY_OPERATORS:-$(echo ${CO_JSON} | jq -r '.items[] | select((.status.conditions == null) or (.status.conditions[] | ((.type == "Available") and (.status == "False")) or ((.type == "Progressing") and (.status == "True")) or ((.type == "Degraded") and (.status == "True")))) | .metadata.name' 2>${STD_ERR} | sort -u)}
-  if [[ ! -z ${DETAILS} ]] && [[ ! -z ${UNHEALTHY_OPERATORS} ]]
+  fct_title "Cluster Operators managementState"
+  if [[ ${OC} == "oc" ]]
   then
-    fct_title_details "Unhealthy Cluster Operators - Details"
-    for OPERATOR in ${UNHEALTHY_OPERATORS}
-    do
-      echo ${CO_JSON} | jq -r --arg Operator ${OPERATOR} '.items[] | select(.metadata.name == $Operator) | "##### " + .metadata.name + " #####",(if (.status.conditions != null) then {status: {conditions: [(.status.conditions[] | select((.type == "Available") or (.type == "Progressing") or (.type == "Degraded")))]}} else {status: {conditions: null}} end)'
-    done
+    OPERATORS_LIST=$(${OC} api-resources --api-group=operator.openshift.io -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")
+  else
+    MG_PATH=${MG_PATH:-$(${OC} use 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | yq -r '."Must-Gather"')}
+    OPERATORS_LIST=$(ls -1d ${MG_PATH}/cluster-scoped-resources/operator.openshift.io/* 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | awk -F '/' '{print $NF".operator.openshift.io"}')
+    if [[ -z ${OPERATORS_LIST} ]]
+    then
+      ## The list of operators is hardcoded as there is no api-resources defined in `omc`
+      OPERATORS_LIST="authentications.operator.openshift.io cloudcredentials.operator.openshift.io clustercsidrivers.operator.openshift.io configs.operator.openshift.io consoles.operator.openshift.io csisnapshotcontrollers.operator.openshift.io dnses.operator.openshift.io etcds.operator.openshift.io imagecontentsourcepolicies.operator.openshift.io ingresscontrollers.operator.openshift.io insightsoperators.operator.openshift.io kubeapiservers.operator.openshift.io kubecontrollermanagers.operator.openshift.io kubeschedulers.operator.openshift.io kubestorageversionmigrators.operator.openshift.io machineconfigurations.operator.openshift.io networks.operator.openshift.io olms.operator.openshift.io openshiftapiservers.operator.openshift.io openshiftcontrollermanagers.operator.openshift.io servicecas.operator.openshift.io storages.operator.openshift.io"
+    fi
   fi
+  Operator_managementStates=$(for OPERATOR in ${OPERATORS_LIST}; do ${OC} get ${OPERATOR} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | "\(.kind)|\(.metadata.name)|\(if (.spec.managementState != null) then .spec.managementState else "Managed" end)"'; done)
+  if [[ -z ${DETAILS} ]]
+  then
+     Operator_managementStates=$(echo "${Operator_managementStates}" | grep -v "Managed")
+  fi
+  echo -e "KIND|NAME|MANAGEMENT STATE\n${Operator_managementStates}" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/Managed/${greentext}&${resetcolor}/g" -e "s/Unmanaged/${yellowtext}&${resetcolor}/g" -e "s/Removed/${redtext}&${resetcolor}/g"
   fct_title "CSV"
   ${OC} get clusterserviceversion.operators.coreos.com -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"Namespace|Name|Display Name|Provider|Version|Phase\n",(.items | sort_by(.metadata.name) | group_by(.metadata.name) | map({namespaces: map(.metadata.namespace), name: .[0].metadata.name, displayName: .[0].spec.displayName, provider: (if (.[0].spec.provider.name != null) then .[0].spec.provider.name else "N/A" end), version: .[0].spec.version, phase: .[0].status.phase}) | .[] | "\(if ((.namespaces | length) > 1) then "ALL" else .namespaces[0] end)|\(.name)|\(.displayName)|\(.provider)|\(.version)|\(.phase)")' 2>${STD_ERR} | column -ts'|' | sed -e "s/Succeeded$/${greentext}&${resetcolor}/g" -e "s/Installing$/${yellowtext}&${resetcolor}/g" -e "s/Replacing$/${yellowtext}&${resetcolor}/g" -e "s/Failed$/${redtext}&${resetcolor}/g" -e "s/-community-/${yellowtext}&${resetcolor}/g"
   fct_title "Subscriptions"
@@ -866,7 +897,7 @@ then
       fi
     done
   fi
-  KUBELETCONFIG=${KUBELETCONFIG:-$(${OC} get kubeletconfig.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r 'if(.items != null) then . else null end')}
+  KUBELETCONFIG=${KUBELETCONFIG:-$(${OC} get kubeletconfig.machineconfiguration.openshift.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r 'if(.items == []) then null else . end')}
   if [[ "${KUBELETCONFIG}" != "null" ]] && [[ "${KUBELETCONFIG}" != "" ]]
   then
     fct_title "Kubelet Config(s)"
@@ -1044,7 +1075,7 @@ then
   fct_title "Revision Status"
   for static in etcd kubeapiserver kubecontrollermanager kubescheduler
   do
-    static_revision=$(${OC} get ${static}.operator.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.status.conditions[] | select(((.type == "NodeInstallerProgressing") or (.type == "APIServerDeploymentProgressing")) and (.message != null)) | ": \(.message | sub("\n";" ";"g"))"' | sed -e "s/[0-9] nodes are at revision [0-9]\{1,6\}/${greentext}&${resetcolor}/" -e "s/; \([0-9] nodes are at revision [0-9]\{1,6\}\)/; ${yellowtext}\1${resetcolor}/" -e "s/; \(0 nodes have achieved new revision [0-9]\{1,3\}\)/; ${redtext}\1${resetcolor}/")
+    static_revision=$(${OC} get ${static}.operator.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.status.conditions[]? | select(((.type == "NodeInstallerProgressing") or (.type == "APIServerDeploymentProgressing")) and (.message != null)) | ": \(.message | sub("\n";" ";"g"))"' | sed -e "s/[0-9] nodes are at revision [0-9]\{1,6\}/${greentext}&${resetcolor}/" -e "s/; \([0-9] nodes are at revision [0-9]\{1,6\}\)/; ${yellowtext}\1${resetcolor}/" -e "s/; \(0 nodes have achieved new revision [0-9]\{1,3\}\)/; ${redtext}\1${resetcolor}/")
     if [[ ! -z ${static_revision} ]]
     then
       printf "${static}|${static_revision}\n"
@@ -1057,10 +1088,10 @@ then
     do
       fct_title_details "${namespace}"
       echo "--- Config Maps ---"
-      ${OC} get configmaps -n ${namespace} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -ts'|' | tail -5
+      ${OC} get configmaps -n ${namespace} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[]? | select(.metadata.name | test("revision-status")) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.data.status) | \(.data.reason)"' | column -ts'|' | tail -5
       echo "--- Installer Pods (up to 10) ---"
       ALL_PODS_JSON=${ALL_PODS_JSON:-$(${OC} get pods -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
-      INSTALLER_DETAILS=$(echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${namespace} '.items | sort_by(.metadata.creationTimestamp,.metadata.name) | .[] | select((.metadata.namespace == $namespace) and (.metadata.labels.app == "installer")) | "\(.metadata.name)|\(.status.phase)|\(if (.status.containerStatuses[0] != null) then .status.containerStatuses[0]|"\(.name)|\(.restartCount)|\(.state | .[] |  "\(.startedAt)|\(.finishedAt)|\(.reason)")" else "N/A|N/A|N/A|N/A|N/A" end)"'| tail -10)
+      INSTALLER_DETAILS=$(echo "${ALL_PODS_JSON}" | jq -r --arg namespace ${namespace} '.items | sort_by(.metadata.creationTimestamp,.metadata.name) | .[]? | select((.metadata.namespace == $namespace) and (.metadata.labels.app == "installer")) | "\(.metadata.name)|\(.status.phase)|\(if (.status.containerStatuses[0] != null) then .status.containerStatuses[0]|"\(.name)|\(.restartCount)|\(.state | .[] |  "\(.startedAt)|\(.finishedAt)|\(.reason)")" else "N/A|N/A|N/A|N/A|N/A" end)"'| tail -10)
       if [[ -z ${INSTALLER_DETAILS} ]]
       then
         echo "No resources pods.core matching the 'installer' label found in ${namespace} namespace."
@@ -1106,6 +1137,12 @@ then
     ${OC} etcd status 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [3-9][0-9]% /${yellowtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
     fct_title "ETCD member list"
     ${OC} etcd members 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"
+    MG_PATH=${MG_PATH:-$(${OC} use 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | yq -r '."Must-Gather"')}
+    if [[ -f ${MG_PATH}/etcd_info/object_count.json ]]
+    then
+      ETCD_OBJECT_COUNT_JSON=$(cat ${MG_PATH}/etcd_info/object_count.json)
+      #jq -r '"OBJECT|COUNT|SIZE",(if(.etcd_resources != null) then (.etcd_resources[] | select(.object_count | tonumber > 1000) | "\(.object_name)|\(.object_count)|\(.object_size)") else to_entries | sort_by(-(.value | tonumber)) | .[] | select((.value | tonumber) >1000) | "\(.key)|\(.value)|N/A" end)' ${MG_PATH}/etcd_info/object_count.json | column -ts'|' | sed -e 's/[ ]*$//' -e "s/ [1-9][0-9]\{3,10\} /${redtext}&${resetcolor}/"
+    fi
   else
     # Display ETCD status when running the script against a cluster using 'oc' command
     ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl endpoint health -w table 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [2-9][0-9].*ms /${yellowtext}&${resetcolor}/" -e "s/ [1-9][0-9]\{2,9\}.*ms /${redtext}&${resetcolor}/" -e "s/ false /${redtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
@@ -1113,6 +1150,22 @@ then
     ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl endpoint status -w table 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | sed -e "s/ [3-9][0-9]% /${yellowtext}&${resetcolor}/" -e "s/ true /${greentext}&${resetcolor}/"
     fct_title "ETCD member list"
     ${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) etcdctl member list -w table
+    ETCD_OBJECT_COUNT_JSON=$(${OC} rsh -n openshift-etcd -c etcdctl $(${OC} get pods -n openshift-etcd -l k8s-app=etcd 2>${STD_ERR} | grep "Running" | awk '{print $1}' | head -1) sh -c "etcdctl get / --prefix --keys-only 2>${STD_ERR} | grep -oE \"^/[a-z|.]+/[a-z|.|8]*\" | sort | uniq -c | sort -rn | while read KEY; do printf \"\$KEY\\t\" && etcdctl get \${KEY##* } --prefix --print-value-only 2>${STD_ERR}| wc -c | numfmt --to=iec ; done | sort -k3 -hr | column -J -n \"etcd_resources\" -N \"object_count,object_name,object_size\"")
+  fi
+  if [[ ! -z ${ETCD_OBJECT_COUNT_JSON} ]]
+  then
+    ETCD_OBJECT_COUNT_LIST=$(echo "${ETCD_OBJECT_COUNT_JSON}" | jq -r --arg max_object_count ${MAX_OBJECT_COUNT} 'if(.etcd_resources != null) then (.etcd_resources | sort_by(-(.object_count | tonumber)) | .[] | select((.object_count | tonumber) > ($max_object_count | tonumber)) | "\(.object_name)|\(.object_count)|\(.object_size)") else to_entries | sort_by(-(.value | tonumber)) | .[] | select((.value | tonumber) > ($max_object_count | tonumber)) | "\(.key)|\(.value)|N/A" end')
+    if [[ ! -z ${ETCD_OBJECT_COUNT_LIST} ]]
+    then
+      fct_title "ETCD objects count (above ${MAX_OBJECT_COUNT} objects)"
+      echo -e "OBJECT|COUNT|SIZE\n${ETCD_OBJECT_COUNT_LIST}" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/ [1-9][0-9]\{4,10\} /${redtext}&${resetcolor}/" -e "s/ [1-9][0-9]\{3\} /${yellowtext}&${resetcolor}/"
+    fi
+    ETCD_OBJECT_SIZE_LIST=$(echo "${ETCD_OBJECT_COUNT_JSON}" | jq -r --arg max_object_size ${MAX_OBJECT_SIZE} 'if(.etcd_resources != null) then (.etcd_resources | sort_by(-(.object_count | tonumber)) | .[] | select((if (.object_size|split("K")[1] != null) then (.object_size|split("K")[0]|tonumber*1024) else (if (.object_size|split("M")[1] != null) then (.object_size|split("M")[0]|tonumber*1024*1024) else (if (.object_size|split("G")[1] != null) then (.object_size|split("G")[0]|tonumber*1024*1024*1024) else (.object_size|tonumber) end) end) end) > ($max_object_size | tonumber)) | "\(.object_name)|\(.object_count)|\(.object_size)") else empty end')
+    if [[ ! -z ${ETCD_OBJECT_SIZE_LIST} ]]
+    then
+      fct_title "ETCD objects size (above $((${MAX_OBJECT_SIZE} / 1048576))Mi)"
+      echo -e "OBJECT|COUNT|SIZE\n${ETCD_OBJECT_SIZE_LIST}" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/[0-9.]*M$/${yellowtext}&${resetcolor}/" -e "s/[0-9.]*G$/${redtext}&${resetcolor}/" -e "s/[0-9.]*K*$/${greentext}&${resetcolor}/"
+    fi
   fi
   fct_title "ETCD \"finished defragment\", \"server is likely overloaded\" & \"took too long\" log messages"
   for POD in $(${OC} get pods -n openshift-etcd -l app=etcd -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | cut -d'/' -f2-)
@@ -1146,7 +1199,7 @@ then
   if [[ ! -z "${RULES}" ]]
   then
     fct_title "firing Alerts"
-    echo ${RULES} | jq -r '"RULE|STATE|AGE|ALERTS|ACTIVE SINCE",(if .data != null then (.data[] | select(.state == "firing") | "\(.name)|\(.state)|N/A|\(.alerts | length)|\("\(.alerts | sort_by(.activeAt) | .[0].activeAt[0:19])Z"|fromdate|strftime("%d %b %y %H:%M UTC"))") else "" end)' | column -ts'|' | sed -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/ [5-9]  /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{2,5\}  /${redtext}&${resetcolor}/"
+    echo ${RULES} | jq -r '"RULE|STATE|AGE|ALERTS|ACTIVE SINCE",(if .data != null then (.data[] | select(.state == "firing") | "\(.name)|\(.state)|N/A|\(.alerts | length)|\("\(.alerts | sort_by(.activeAt) | .[0].activeAt[0:19])Z"|fromdate|strftime("%d %b %y %H:%M UTC"))") else "" end)' | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/ [5-9]  /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{2,5\}  /${redtext}&${resetcolor}/"
     fct_title "Firing Alerts rules details"
     echo ${RULES} | jq -r --arg trunk ${ALERT_TRUNK} '"ALERTNAME|LAST ACTIVE|NAMESPACE|OBJECT REFERENCE|SEVERITY|DESCRIPTION|",if .data != null then (.data[] | select(.state == "firing") | .alerts | sort_by(.activeAt) | .[] | "\(.labels.alertname)|\(.activeAt)|\(.labels.namespace)|\(if (.labels.workload != null) then .labels.workload elif (.labels.pod != null) then .labels.pod elif (.labels.endpoint != null) then .labels.endpoint elif (.labels.job != null) then .labels.job elif (.labels.node != null) then .labels.node elif (.labels.name != null) then .labels.name elif (.labels.channel != null) then .labels.channel elif (.labels.poddisruptionbudget != null) then .labels.poddisruptionbudget else .labels.service end)|\(.labels.severity)|\(if (.annotations != null) then (if (.annotations.description != null) then .annotations.description[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.message != null) then .annotations.message[0:($trunk|tonumber)] | sub("\n";" ";"g") elif (.annotations.summary != null) then .annotations.summary[0:($trunk|tonumber)] | sub("\n";" ";"g") else "N/A" end) else "N/A" end)") else "" end' | column -ts'|' | sed -e 's/[ ]*$//' -e 's/^"//' -e 's/"$//' -e "s/ [Ww]arning /${yellowtext}&${resetcolor}/" -e "s/ [Ii]nfo /${greentext}&${resetcolor}/" -e "s/ [a-zA-Z_]*[Cc]ritical /${redtext}&${resetcolor}/" -e "s/ [Mm]ajor /${redtext}&${resetcolor}/" -e "s/ [Hh]igh /${redtext}&${resetcolor}/" -e "s/ [Dd]isaster /${redtext}&${resetcolor}/" -e "s/^Kube[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^Cluster[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^System[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*ControlPlane[a-zA-Z]* /${purpletext}&${resetcolor}/" -e "s/^[a-zA-Z]*Master[a-zA-Z]* /${purpletext}&${resetcolor}/"
   else
