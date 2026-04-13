@@ -12,6 +12,23 @@
 
 --------
 
+## Version 1.2.45
+
+### Minor updates - 1.2.45
+
+- None
+
+### Release updates - 1.2.45
+
+- (STATIC POD) fix a 'jq' issue when the revision are missing.
+- (CONTEXT) detect an additional rosa installation type.
+- (ETCD) Display the object count above 1000 and object size above 100Mi
+- (MCO) bug fix to avoid display the 'kubeletconfig' when there is no entry
+- (OPERATORS) Display unmanaged COs
+- (OPERATORS) Included Unknown condition status in the 'Unhealthy Cluster Operators - Details' and moving the section after the co status.
+
+--------
+
 ## Version 1.2.44
 
 ### Minor updates - 1.2.44
