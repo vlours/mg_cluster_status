@@ -12,6 +12,22 @@
 
 --------
 
+## Version 1.2.46
+
+### Minor updates - 1.2.46
+
+- None
+
+### Release updates - 1.2.46
+
+- (POD) Optimization: reducing the time to display the DNS errors from log file using grep instead of the 'omc logs' command, and displaying the number of file processed in the detailled view.
+- (POD) Optimization: reducing the time to display the machine-config-daemon log using log file instead of the 'omc logs' command.
+- (POD) Optimization: Introducing a new Variable 'HEAD_PODS' to limit the display of restarted PODs. And updating the README accordingly.
+- (POD) Optimization: reducing the footprint of the restart PODs, to slightly increase the display speed.
+- (COs) Optimization: require 'UNHEALTHY_OPERATORS' to trigger the 'Cluster Operators managementState', and so reduce unnecessary checks.
+
+--------
+
 ## Version 1.2.45
 
 ### Minor updates - 1.2.45
