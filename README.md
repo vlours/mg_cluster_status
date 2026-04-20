@@ -118,14 +118,16 @@ Customizable variables before running the script (Optional):
 | Options                           | Type         | Description                                                                                  | [Default]  | [Current] |
 |-----------------------------------|--------------|----------------------------------------------------------------------------------------------|------------|-----------|
 | export OC=                        | <executable> | #Change the must-gather tool (use 'oc' to run the script against live cluster)               | [omc]      |           |
-| export ALERT_TRUNK=               | <interger>   | #Change the length of the Alert Descriptions                                                 | [100]      |           |
-| export CONDITION_TRUNK=           | <interger>   | #Change the length of the Operator Message in 'oc get co'                                    | [220]      |           |
-| export POD_TRUNK=                 | <interger>   | #Change the length of the POD Message in 'oc get pod'                                        | [100]      |           |
+| export ALERT_TRUNK=               | <integer>    | #Change the length of the Alert Descriptions                                                 | [100]      |           |
+| export CONDITION_TRUNK=           | <integer>    | #Change the length of the Operator Message in 'oc get co'                                    | [220]      |           |
+| export POD_TRUNK=                 | <integer>    | #Change the length of the POD Message in 'oc get pod'                                        | [100]      |           |
 | export POD_WIDE=                  | <boolean>    | #Enable/Disable the '-o wide' option in the command 'oc get pod'                             | [true]     |           |
 | export MIN_RESTART=               | <integer>    | #Change the minimal number of restart when checking the POD restarts                         | [10]       |           |
-| export NODE_TRANSITION_DAYS=      | <interger>   | #Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC       | [30]       |           |
-| export OPERATOR_TRANSITION_DAYS=  | <interger>   | #Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators | [2]        |           |
+| export NODE_TRANSITION_DAYS=      | <integer>    | #Change the value to highlight the conditions[].lastTransitionTime for the Nodes & SCC       | [30]       |           |
+| export OPERATOR_TRANSITION_DAYS=  | <integer>    | #Change the value to highlight the conditions[].lastTransitionTime for the Cluster Operators | [2]        |           |
 | export TAIL_LOG=                  | <integer>    | #Change the number of lines displayed from events and logs ('tail')                          | [25]       |           |
+| export TAIL_MC=                   | <integer>    | #Change the number of lines displayed from Latest MCs list ('tail')                          | [15]       |           |
+| export HEAD_PODS=                 | <integer>    | #Limit the number PODs displayed in the 'High number POD restart' view. (0 for full list)    | [50]       |           |
 | export graytext=                  | <color_code> | #Replace the gray color used in the script                                                   | [\x1B[30m] |           |
 | export redtext=                   | <color_code> | #Replace the red color used in the script                                                    | [\x1B[31m] |           |
 | export greentext=                 | <color_code> | #Replace the green color used in the script                                                  | [\x1B[32m] |           |
