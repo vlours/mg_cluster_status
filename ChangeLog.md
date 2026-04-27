@@ -12,6 +12,20 @@
 
 --------
 
+## Version 1.2.47
+
+### Minor updates - 1.2.47
+
+- None
+
+### Release updates - 1.2.47
+
+- (MCO) Using the 'spec' instead of the 'status' to check the osImageURLs, as the status can be corrupted.
+- (EVENTS) Adding title in the count of events.
+- (MAIN) Setting the 'MG_PATH' in the main as default.
+
+--------
+
 ## Version 1.2.46
 
 ### Minor updates - 1.2.46
