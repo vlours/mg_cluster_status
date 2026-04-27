@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.46
+# @VERSION     # 1.2.47
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -467,6 +467,11 @@ then
   exit 2
 fi
 
+if [[ ${OC} == "omc" ]]
+then
+  MG_PATH=${MG_PATH:-$(${OC} use 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | yq -r '."Must-Gather"')}
+fi
+
 ${OC} project default >${STD_ERR} 2>${STD_ERR}
 
 ########### CONTEXT ###########
@@ -911,7 +916,7 @@ then
     fct_title "osImageURL conflicts"
     for mcp in $(echo ${MCP_JSON} | jq -r '.items[].metadata.name'); do
       printf "Checking MCP ${mcp}: "
-      for mc in $(echo ${MCP_JSON} | jq -r --arg mcp ${mcp} '.items[] | select(.metadata.name == $mcp) | .status.configuration.source[].name'); do
+      for mc in $(echo ${MCP_JSON} | jq -r --arg mcp ${mcp} '.items[] | select(.metadata.name == $mcp) | .spec.configuration.source[].name'); do
         echo ${MC_JSON_conflicts} | jq -r --arg mc ${mc} 'select(.name == $mc) | {name: .name, osImageURL: .osImageURL} '
       done | jq -rs 'group_by(.osImageURL) | if length > 1 then "conflicts detected", . else "all osImageURLs match (\(.[0] | .[0].osImageURL))" end' | sed -e "s/.*/${yellowtext}&${resetcolor}/" -e "s/conflicts detected/${redtext}&${resetcolor}/" -e "s/all osImageURLs match/${greentext}&${resetcolor}/"
       echo "-------------------"
@@ -934,6 +939,7 @@ then
         fct_title_details "${DEGRADED_NODE} - ${pod_name} log (last ${TAIL_LOG} lines)"
         if [[ ${OC} == "omc" ]]
         then
+          MG_PATH=${MG_PATH:-$(${OC} use 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | yq -r '."Must-Gather"')}
           tail -${TAIL_LOG} ${MG_PATH}/namespaces/openshift-machine-config-operator/pods/${pod_name}/machine-config-daemon/machine-config-daemon/logs/current.log 2>${STD_ERR}
         else
           ${OC} logs -n openshift-machine-config-operator ${pod_name} -c machine-config-daemon 2>${STD_ERR} | tail -${TAIL_LOG}
@@ -969,21 +975,22 @@ if [[ ! -z ${EVENTS} ]] || [[ ! -z ${ALL} ]]
 then
   fct_header "EVENTS"
   EVENT_NAMESPACE=${NAMESPACE:-"default"}
+  EVENT_JSON=${EVENT_JSON:-$(${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
   if [[ -z ${DETAILS} ]]
   then
     fct_title "Events in ${EVENT_NAMESPACE} namespace (last ${TAIL_LOG} lines)"
-    echo -e "creationTimestamp | Name | Reason | Host | Component | Message\n$(${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))"' | tail -${TAIL_LOG})" | column -ts'|' | sed -e 's/[ ]*$//'
+    echo -e "creationTimestamp | Name | Reason | Host | Component | Message\n$(echo "${EVENT_JSON}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))"' | tail -${TAIL_LOG})" | column -ts'|' | sed -e 's/[ ]*$//'
   else
     fct_title "Events in ${EVENT_NAMESPACE} namespace"
-    ${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | column -ts'|' | sed -e 's/[ ]*$//'
+    echo "${EVENT_JSON}" | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | column -ts'|' | sed -e 's/[ ]*$//'
   fi
   if [[ ${EVENT_NAMESPACE} == "default" ]]
   then
     fct_title "Count of Events by Namespace/Reason/Component in ALL namespaces (${TAIL_LOG} lines)"
-    ${OC} get events -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
+    echo -e "COUNT|NAMESPACE|REASON|COMPONENT\n$(${OC} get events -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | sed -e 's/^[ ]*\([0-9]*\)[ ]*/\1|/')" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
   else
     fct_title "Count of Events by Namespace/Reason/Component in ${EVENT_NAMESPACE} namespace (${TAIL_LOG} lines)"
-    ${OC} get events -n ${EVENT_NAMESPACE} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
+    echo -e "COUNT|NAMESPACE|REASON|COMPONENT\n$(echo "${EVENT_JSON}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | sed -e 's/^[ ]*\([0-9]*\)[ ]*/\1|/')" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
   fi
 fi
 ########### SCC ###########
