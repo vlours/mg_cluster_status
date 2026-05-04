@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.47
+# @VERSION     # 1.2.48
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -178,7 +178,7 @@ fct_unsuccessful_container_details() {
     UNCOMPLETE_POD_LIST=$(echo "${ALL_PODS}" | grep -Ev "^NAME|Completed|Succeeded" | awk -F '[ /]*' -v thenamespace=${NAMESPACE} '{if($2 != $3){print thenamespace"/"$1}}')
   fi
   ALL_POD_HEADER=${ALL_POD_HEADER:-$(echo "${ALL_PODS}" | grep -E "^NAME")}
-  echo ${ALL_POD_HEADER}
+  echo -e "${ALL_POD_HEADER}"
   for POD_details in ${UNCOMPLETE_POD_LIST}
   do
     namespace=$(echo ${POD_details} | cut -d'/' -f1)
@@ -221,7 +221,7 @@ fct_restart_container_details() {
   else
     RESTART_POD_LIST=$(echo "${RESTARTED_POD_JSON}" | jq -r 'sort_by(-([.status.containerStatuses[].restartCount | tonumber] | add),.metadata.namespace,.metadata.name) | .[].metadata | "\(.namespace)/\(.name)"')
   fi
-  echo ${ALL_POD_HEADER}
+  echo -e "${ALL_POD_HEADER}"
   for POD_details in ${RESTART_POD_LIST}
   do
     NAMETAB=32
@@ -830,7 +830,7 @@ then
     echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '"|NAME|VERSION|AVAILABLE|PROGRESSING|DEGRADED|LASTTRANSTION|MESSAGE",(.items[] | "|\(.metadata.name)|\(if(.status.versions != null) then (.status.versions[] | select(.name == "operator") | .version) else " " end)|\(if(.status.conditions != null) then ("\(.status.conditions[] | select(.type == "Available") | .status)|\(.status.conditions[] | select(.type == "Progressing") | .status)|\(.status.conditions[] | select(.type == "Degraded") | .status)|\(.status.conditions | if(.[]|select(.type == "Degraded") | (.message != null) and (.status == "True")) then .[]|select(.type == "Degraded") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) elif (.[]|select(.type == "Progressing") | (.message != null) and (.status == "True")) then .[]|select(.type == "Progressing") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) elif (.[]|select(.type == "Available") | (.message != null) and (.status == "True")) then .[]|select(.type == "Available") | .lastTransitionTime + "|" + (.message[0:($trunk|tonumber)] | sub("\n";" ";"g")) else " | " end)") else "Unknown|Unknown|Unknown| " end)|")' 2>${STD_ERR} | grep -v "True|False|False" | awk -F'|' '{printf "%s|%s|",$2,$3; if($4 == "AVAILABLE"){printf "%s|",$4} else if($4 == "True"){printf "G%s|",$4}else{printf "R%s|",$4}; if($5 == "PROGRESSING"){printf "%s|",$5} else if($5 == "True"){printf "Y%s|",$5}else{printf "G%s|",$5}; if($6 == "DEGRADED"){printf "%s|",$6} else if($6 == "True"){printf "R%s|",$6}else{printf "G%s|",$6}; printf "%s|%s\n",$7,$8}' | column -ts'|' | sed -e 's/[ ]*$//' -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g" -e "s/[RG]\(Unknown\)/${yellowtext}\1 ${resetcolor}/g"
   fi
   UNHEALTHY_OPERATORS=${UNHEALTHY_OPERATORS:-$(echo ${CO_JSON} | jq -r '.items[] | select((.status.conditions == null) or (.status.conditions[] | ((.type == "Available") and (.status != "True")) or ((.type == "Progressing") and (.status != "False")) or ((.type == "Degraded") and (.status != "False")))) | .metadata.name' 2>${STD_ERR} | sort -u)}
-  if [[ ! -z ${DETAILS} ]] && [[ ! -z ${UNHEALTHY_OPERATORS} ]]
+  if [[ ! -z ${UNHEALTHY_OPERATORS} ]] && [[ ! -z ${DETAILS} ]]
   then
     fct_title_details "Unhealthy Cluster Operators - Details"
     for OPERATOR in ${UNHEALTHY_OPERATORS}
@@ -840,19 +840,20 @@ then
   fi
   CLUSTER_VERSION=${CLUSTER_VERSION:-$(${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r .status.desired.version 2>${STD_ERR})}
   CO_MISS_VERSION_OUTPUT=${CO_MISS_VERSION_OUTPUT:-$(echo ${CO_JSON} | jq -r --arg ClusterVersion "${CLUSTER_VERSION:-"null"}" '.items[] | select((.metadata.ownerReferences != null) and (.metadata.ownerReferences[].kind == "ClusterVersion") and (if (.status.versions != null) then (.status.versions[] | select((.name == "operator") and (.version != $ClusterVersion))) else true end)) | "\(.metadata.name)|\(if(.status.versions != null) then .status.versions[] | select(.name == "operator") | .version else "Unknown" end)"')}
-  if [[ ! -z "${CO_MISS_VERSION_OUTPUT}" ]]
+  if [[ ! -z "${CO_MISS_VERSION_OUTPUT}" ]] || [[ ! -z ${DETAILS} ]]
   then
     fct_title "Not Updated Cluster Operators (target version: ${CLUSTER_VERSION})"
     echo -e "NAME|VERSION\n${CO_MISS_VERSION_OUTPUT}" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/[0-9].[0-9]\{1,2\}.[0-9]\{1,2\}/${redtext}&${resetcolor}/" -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/" -e "s/\(Unknown\)/${yellowtext}\1${resetcolor}/g"
   fi
   CO_NOT_UPGRADEABLE=$(echo ${CO_JSON} | jq -r --arg trunk ${CONDITION_TRUNK} '.items[] | if (.status.conditions == null) then "\(.metadata.name)|Unknown|||" else (if ((.status.conditions[] | select(.type == "Upgradeable")| .status) != "True") then "\(.metadata.name)|\(.status.conditions[] | select(.type == "Upgradeable")|"\(.status)|\(if (.reason != null) then .reason else "" end)|\(if (.message != null) then .message[0:($trunk|tonumber)] | sub("\n";" ";"g") else "" end)")" else "" end) end' | column -t)
-  if [[ ! -z "${CO_NOT_UPGRADEABLE}" ]]
+  if [[ ! -z "${CO_NOT_UPGRADEABLE}" ]] || [[ ! -z ${DETAILS} ]]
   then
     fct_title "Not Upgradeable Cluster Operators"
     echo -e "NAME|UPGRADEABLE|REASON|MESSAGE\n${CO_NOT_UPGRADEABLE}" | sed -e "s/  */ /g" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^[a-z\-]*/${purpletext}&${resetcolor}/" -e "s/\(False\)/${yellowtext}\1${resetcolor}/g" -e "s/\(Unknown\)/${yellowtext}\1${resetcolor}/g"
   fi
   # This task is consuming time, and will only be triggered if some COs are unhealthy. As an unmanaged CO will have "unknown" states.
-  if [[ ! -z ${UNHEALTHY_OPERATORS} ]]
+  UNKNOWN_OPERATORS=${UNKNOWN_OPERATORS:-$(echo ${CO_JSON} | jq -r '.items[] | select((.status.conditions == null) or (.status.conditions[] | ((.type == "Available") and (.status == "Unknown")) or ((.type == "Progressing") and (.status == "Unknown")) or ((.type == "Degraded") and (.status == "Unknown")))) | .metadata.name' 2>${STD_ERR} | sort -u)}
+  if [[ ! -z ${UNKNOWN_OPERATORS} ]] || [[ ! -z ${DETAILS} ]]
   then
     fct_title "Cluster Operators managementState"
     if [[ ${OC} == "oc" ]]
@@ -867,7 +868,7 @@ then
         OPERATORS_LIST="authentications.operator.openshift.io cloudcredentials.operator.openshift.io clustercsidrivers.operator.openshift.io configs.operator.openshift.io consoles.operator.openshift.io csisnapshotcontrollers.operator.openshift.io dnses.operator.openshift.io etcds.operator.openshift.io imagecontentsourcepolicies.operator.openshift.io ingresscontrollers.operator.openshift.io insightsoperators.operator.openshift.io kubeapiservers.operator.openshift.io kubecontrollermanagers.operator.openshift.io kubeschedulers.operator.openshift.io kubestorageversionmigrators.operator.openshift.io machineconfigurations.operator.openshift.io networks.operator.openshift.io olms.operator.openshift.io openshiftapiservers.operator.openshift.io openshiftcontrollermanagers.operator.openshift.io servicecas.operator.openshift.io storages.operator.openshift.io"
       fi
     fi
-    Operator_managementStates=$(for OPERATOR in ${OPERATORS_LIST}; do ${OC} get ${OPERATOR} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | "\(.kind)|\(.metadata.name)|\(if (.spec.managementState != null) then .spec.managementState else "Managed" end)"'; done)
+    Operator_managementStates=$(for OPERATOR in ${OPERATORS_LIST}; do ${OC} get ${OPERATOR} -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | "\(.kind).\(.apiVersion | split("/") | .[0])|\(.metadata.name)|\(if (.spec.managementState != null) then ".spec.managementState: \"\(.spec.managementState)\"" else ".spec.managementState: \"Managed\"" end)"'; done)
     if [[ -z ${DETAILS} ]]
     then
       Operator_managementStates=$(echo "${Operator_managementStates}" | grep -v "Managed")
@@ -933,10 +934,10 @@ then
     MCO_PODS=${MCO_PODS:-$(${OC} get pods -n openshift-machine-config-operator -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
     for DEGRADED_NODE in ${DEGRADED_NODES}
     do
+      fct_title_details "${DEGRADED_NODE} - ${pod_name} log (last ${TAIL_LOG} lines)"
       pod_name=$(echo "${MCO_PODS}" | jq -r --arg degraded_node ${DEGRADED_NODE} '.items[] | select((.spec.nodeName == $degraded_node) and (.metadata.labels."k8s-app" == "machine-config-daemon")) | .metadata.name')
       if [[ ! -z ${pod_name} ]]
       then
-        fct_title_details "${DEGRADED_NODE} - ${pod_name} log (last ${TAIL_LOG} lines)"
         if [[ ${OC} == "omc" ]]
         then
           MG_PATH=${MG_PATH:-$(${OC} use 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | yq -r '."Must-Gather"')}
@@ -944,6 +945,8 @@ then
         else
           ${OC} logs -n openshift-machine-config-operator ${pod_name} -c machine-config-daemon 2>${STD_ERR} | tail -${TAIL_LOG}
         fi
+      else
+        echo "Unable to find the machine-config-daemon log for node ${DEGRADED_NODE}"
       fi
     done
   fi
@@ -1097,19 +1100,20 @@ then
   then
     fct_restart_container_details
   else
+    echo "${ALL_PODS}" | head -1
     if [[ -z ${NAMESPACE=} ]]
     then
-      PODS_RESTART=$(echo "${ALL_PODS}" | sort -rnk 5 | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)')
+      PODS_RESTART=$(echo "${ALL_PODS}" | grep -Ev "^NAME" | sort -rnk 5 | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)')
       NB_POD_RESTART=$(echo "${PODS_RESTART}" | wc -l)
       if [[ ${HEAD_PODS} != 0 ]] && [[ ${NB_POD_RESTART} -gt ${HEAD_PODS} ]]
       then
         echo -e "${yellowtext}INFO: (${NB_POD_RESTART}) PODS matching the condition. Displaying only the top ${HEAD_PODS} PODs with highest restart number${resetcolor}"
-        echo "${ALL_PODS}" | sort -rnk 5 | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | head -${HEAD_PODS} | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
+        echo "${ALL_PODS}" | grep -Ev "^NAME" | sort -rnk 5 | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | head -${HEAD_PODS} | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
       else
-        echo "${ALL_PODS}" | sort -rnk 5 | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
+        echo "${ALL_PODS}" | grep -Ev "^NAME" | sort -rnk 5 | awk -v min_restart=${MIN_RESTART} '($5 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
       fi
     else
-      echo "${ALL_PODS}" | sort -rnk 4 | awk -v min_restart=${MIN_RESTART} '($4 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
+      echo "${ALL_PODS}" | grep -Ev "^NAME" | sort -rnk 4 | awk -v min_restart=${MIN_RESTART} '($4 > min_restart)' | sed -e "s/ [0-9]\{1,2\} /${yellowtext}&${resetcolor}/" -e "s/ [0-9]\{3,5\} /${redtext}&${resetcolor}/"
     fi
   fi
   fct_title "DNS Pod Errors (openshift-dns namespace)"
@@ -1238,11 +1242,11 @@ then
       echo -e "OBJECT|COUNT|SIZE\n${ETCD_OBJECT_SIZE_LIST}" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/[0-9.]*M$/${yellowtext}&${resetcolor}/" -e "s/[0-9.]*G$/${redtext}&${resetcolor}/" -e "s/[0-9.]*K*$/${greentext}&${resetcolor}/"
     fi
   fi
-  fct_title "ETCD \"finished defragment\", \"server is likely overloaded\" & \"took too long\" log messages"
+  fct_title "ETCD \"lost leader\", \"leader changed\",\"finished defragment\", \"server is likely overloaded\" & \"took too long\" log messages"
   for POD in $(${OC} get pods -n openshift-etcd -l app=etcd -o name 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | cut -d'/' -f2-)
   do
     fct_title_details "${POD}"
-    ${OC} logs $POD -c etcd -n openshift-etcd 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | grep -E "took too long|server is likely overloaded|finished defragment" | sed -e "s/^[-:.0-9TZ +]*{/{/" | jq -r '.msg' | sort |uniq -c | sed -e "s/^ *[1-9][0-9]\{2\} /${yellowtext}&${resetcolor}/" -e "s/^ *[1-9][0-9]\{3,10\} /${redtext}&${resetcolor}/"
+    ${OC} logs $POD -c etcd -n openshift-etcd 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | grep -E "took too long|server is likely overloaded|finished defragment|lost leader|leader changed" | sed -e "s/^[-:.0-9TZ +]*{/{/" -e "s/ at term [0-9]*//" | jq -r '.msg' | sort |uniq -c | sed -e "s/^ *[1-9][0-9]\{2\} /${yellowtext}&${resetcolor}/" -e "s/^ *[1-9][0-9]\{3,10\} /${redtext}&${resetcolor}/" -e "s/lost leader/${redtext}&${resetcolor}/" -e "s/leader changed/${yellowtext}&${resetcolor}/"
   done
 fi
 

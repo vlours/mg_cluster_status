@@ -12,6 +12,23 @@
 
 --------
 
+## Version 1.2.48
+
+### Minor updates - 1.2.48
+
+- None
+
+### Release updates - 1.2.48
+
+- (ETCD) Adding 'lost leader' and 'leader changed' in the ETCD check.
+- (MCO) adding a message when the pod log cannot be retrieve for a degraded node.
+- (POD) Exclude the header from the sort in the POD restart display.
+- (POD) Fix a formatting issue with some POD detail views.
+- (CO) only trigger the 'Cluster Operators managementState' when at least one CO has an 'Unknown' condition.
+- (CO) Trigger the conditional state displays if the 'Details' are rquested.
+
+--------
+
 ## Version 1.2.47
 
 ### Minor updates - 1.2.47
