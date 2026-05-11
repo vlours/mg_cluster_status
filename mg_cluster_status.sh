@@ -934,8 +934,8 @@ then
     MCO_PODS=${MCO_PODS:-$(${OC} get pods -n openshift-machine-config-operator -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}")}
     for DEGRADED_NODE in ${DEGRADED_NODES}
     do
-      fct_title_details "${DEGRADED_NODE} - ${pod_name} log (last ${TAIL_LOG} lines)"
       pod_name=$(echo "${MCO_PODS}" | jq -r --arg degraded_node ${DEGRADED_NODE} '.items[] | select((.spec.nodeName == $degraded_node) and (.metadata.labels."k8s-app" == "machine-config-daemon")) | .metadata.name')
+      fct_title_details "${DEGRADED_NODE} - ${pod_name} log (last ${TAIL_LOG} lines)"
       if [[ ! -z ${pod_name} ]]
       then
         if [[ ${OC} == "omc" ]]
