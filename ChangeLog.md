@@ -12,6 +12,19 @@
 
 --------
 
+## Version 1.2.49
+
+### Minor updates - 1.2.49
+
+- None
+
+### Release updates - 1.2.49
+
+- (CONTEXT) Highlight if the '.spec.channel' is defined to candidate in the clusterversion
+- (NODE) Adding the tuned config and profiles.
+
+--------
+
 ## Version 1.2.48
 
 ### Minor updates - 1.2.48
