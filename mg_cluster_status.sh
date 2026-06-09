@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.48
+# @VERSION     # 1.2.49
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -481,7 +481,7 @@ then
   fct_title "Clusterversion"
   ${OC} get clusterversion.config.openshift.io 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | awk '{printf "%s|%s|",$1,$2; if($3 == "AVAILABLE"){printf "%s|",$3} else if($3 == "True"){printf "G%s|",$3}else{printf "R%s|",$3}; if($4 == "PROGRESSING"){printf "%s|",$4} else if($4 == "True"){printf "Y%s|",$4}else{printf "G%s|",$4}; printf "%s|%s|\n",$5,substr($0,index($0,$6))}' | column -ts'|' | sed -e 's/[ ]*$//' -e "s/G\([FT][a-z]*\)/${greentext}\1 ${resetcolor}/g" -e "s/Y\([FT][a-z]*\)/${yellowtext}\1 ${resetcolor}/g" -e "s/R\([FT][a-z]*\)/${redtext}\1 ${resetcolor}/g"
   fct_title "Clusterversion detailed"
-  ${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}&${resetcolor}/g" -e "s/.*baselineCapabilitySet.*/${redtext}&${resetcolor}/g" -e "s/additionalEnabledCapabilities/${yellowtext}&${resetcolor}/g"
+  ${OC} get clusterversion.config.openshift.io version -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"| jq -r '. | del(.metadata.managedFields,.status.availableUpdates)' | sed -e "s/overrides/${redtext}&${resetcolor}/g" -e "s/.*baselineCapabilitySet.*/${redtext}&${resetcolor}/g" -e "s/additionalEnabledCapabilities/${yellowtext}&${resetcolor}/g" -e "s/\"channel\": \"candidate-[0-9.]\{1,\}\"/${redtext}&${resetcolor}/"
   fct_title "FeatureGate"
   ${OC} get FeatureGate.config.openshift.io cluster -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '{"featureSet": .spec.featureSet}' | sed -e "s/TechPreviewNoUpgrade/${redtext}&${resetcolor}/g"
   fct_title "Infrastructure"
@@ -733,6 +733,16 @@ then
 
   fct_title "CSRs"
   ${OC} get csr.certificates.k8s.io -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '"creationTimestamp|NAME|SIGNERNAME|REQUESTOR|REQUESTEDDURATION|CONDITION",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp)|\(.metadata.name)|\(.spec.signerName)|\(.spec.username)|<None>|\(if (.status.conditions == null) then "Pending" elif ((.status.certificate != null) and (.status.conditions[].type == "Approved")) then "Approved,Issued" else .status.conditions[0].type end)")' | column -ts'|' | sed -e "s/Pending/${redtext}&${resetcolor}/" -e "s/Approved.*/${greentext}&${resetcolor}/"
+
+  TUNED_JSON=$(${OC} get tuned.tuned.openshift.io -n openshift-cluster-node-tuning-operator -o json 2>${STD_ERR}  | grep -Ev "${MESSAGE_EXCLUSION}")
+  if [[ ! -z ${TUNED_JSON} ]]
+  then
+    fct_title "Tuned Configurations"
+    fct_title_details "Tuned Details"
+    echo "${TUNED_JSON}" | jq -r '"Tuned Name|Priority|Profile Name|Match expression(s)|",(.items[] | .metadata.name as $name | .spec.recommend | sort_by(.priority) |.[] |"\($name)|\(.priority)|\(.profile)|\(if(.match != null) then .match else "default" end)")' | column -ts'|'
+    fct_title_details "Profiles details"
+    ${OC} get profile.tuned.openshift.io -n openshift-cluster-node-tuning-operator 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}"
+  fi
 fi
 
 ########## Machines ############
