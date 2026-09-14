@@ -12,6 +12,18 @@
 
 --------
 
+## Version 1.2.50
+
+### Minor updates - 1.2.50
+
+- None
+
+### Release updates - 1.2.50
+
+- (EVENT) Fixing bug where timestampCreation field may have taken too much space.
+
+--------
+
 ## Version 1.2.49
 
 ### Minor updates - 1.2.49
