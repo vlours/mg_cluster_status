@@ -2,7 +2,7 @@
 ##################################################################
 # Script       # mg_cluster_status.sh
 # Description  # Display basic health check on a Must-gather
-# @VERSION     # 1.2.49
+# @VERSION     # 1.2.50
 ##################################################################
 # Changelog.md # List the modifications in the script.
 # README.md    # Describes the repository usage
@@ -992,10 +992,10 @@ then
   if [[ -z ${DETAILS} ]]
   then
     fct_title "Events in ${EVENT_NAMESPACE} namespace (last ${TAIL_LOG} lines)"
-    echo -e "creationTimestamp | Name | Reason | Host | Component | Message\n$(echo "${EVENT_JSON}" | jq -r '.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))"' | tail -${TAIL_LOG})" | column -ts'|' | sed -e 's/[ ]*$//'
+    echo -e "creationTimestamp | Name | Reason | Host | Component | Message\n$(echo "${EVENT_JSON}" | jq -r '(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | tail -${TAIL_LOG})" | column -ts'|' | sed -e 's/[ ]*$//'
   else
     fct_title "Events in ${EVENT_NAMESPACE} namespace"
-    echo "${EVENT_JSON}" | jq -r '"creationTimestamp | Name | Reason | Host | Component | Message",(.items | sort_by(.metadata.creationTimestamp) | .[] | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")' | column -ts'|' | sed -e 's/[ ]*$//'
+    echo -e "creationTimestamp | Name | Reason | Host | Component | Message\n$(echo "${EVENT_JSON}" | jq -r --arg namespace "${EVENT_NAMESPACE}" '(.items | sort_by(.metadata.creationTimestamp) | .[] | select(.metadata.namespace == $namespace) | "\(.metadata.creationTimestamp) | \(.metadata.name) | \(.reason) | \(.source.host) | \(.source.component) | \(.message | sub("\n";" ";"g"))")')" | column -ts'|' | sed -e 's/[ ]*$//'
   fi
   if [[ ${EVENT_NAMESPACE} == "default" ]]
   then
@@ -1003,7 +1003,7 @@ then
     echo -e "COUNT|NAMESPACE|REASON|COMPONENT\n$(${OC} get events -A -o json 2>${STD_ERR} | grep -Ev "${MESSAGE_EXCLUSION}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | sed -e 's/^[ ]*\([0-9]*\)[ ]*/\1|/')" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
   else
     fct_title "Count of Events by Namespace/Reason/Component in ${EVENT_NAMESPACE} namespace (${TAIL_LOG} lines)"
-    echo -e "COUNT|NAMESPACE|REASON|COMPONENT\n$(echo "${EVENT_JSON}" | jq -r '.items[] | select((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started"))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | sed -e 's/^[ ]*\([0-9]*\)[ ]*/\1|/')" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
+    echo -e "COUNT|NAMESPACE|REASON|COMPONENT\n$(echo "${EVENT_JSON}" | jq -r --arg namespace "${EVENT_NAMESPACE}" '.items[] | select((.metadata.namespace == $namespace) and ((.source.component != "kubelet") and ((.reason != "Pulling") or (.reason != "Pulled") or (.reason != "Created") or (.reason != "Started")))) | "\(.metadata.namespace)|\(.reason)|\(.source.component)"' 2>${STD_ERR} | sort | uniq -c | sort -nr | head -${TAIL_LOG} | sed -e 's/^[ ]*\([0-9]*\)[ ]*/\1|/')" | column -ts'|' | sed -e 's/[ ]*$//' -e "s/^ *[0-9]\{3,10\} /${yellowtext}&${resetcolor}/"
   fi
 fi
 ########### SCC ###########
